@@ -1,121 +1,277 @@
 <!doctype html>
 <html lang="es">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#e4e6e1">
-  <meta name="description" content="EFEDEGAM: archivo personal de arquitectura, fotomontajes, dibujos y experimentos.">
-  <title>EFEDEGAM — Archivo personal</title>
-  <link rel="icon" href="favicon.svg" type="image/svg+xml">
-  <link rel="preload" href="assets/moqueta-verde-terciopelo-v13.jpg" as="image">
-  <link rel="preload" href="assets/plant-sprout-v15.svg" as="image">
-  <link rel="preload" href="assets/telefono-oliva-v18.svg" as="image">
-  <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="cabinet-v5.css">
-  <link rel="stylesheet" href="cabinet-v6.css">
-  <link rel="stylesheet" href="detective-entry.css">
-  <link rel="stylesheet" href="venetian-v8.css">
-  <link rel="stylesheet" href="venetian-v9.css">
-  <link rel="stylesheet" href="archive-wall-v10.css">
-  <link rel="stylesheet" href="archive-v11.css">
-  <link rel="stylesheet" href="archive-v12.css?v=13-20261019">
-  <link rel="stylesheet" href="archive-v13.css?v=13-20261019">
-  <link rel="stylesheet" href="archive-v14.css?v=15-20261020">
-  <link rel="stylesheet" href="archive-v16.css?v=16-20261020">
-  <link rel="stylesheet" href="archive-v17.css?v=17-20261020">
-  <link rel="stylesheet" href="archive-v18.css?v=18-20261020">
-  <link rel="stylesheet" href="archive-v19.css?v=19-20261020">
-  <link rel="stylesheet" href="room-v20.css?v=20-20261021">
-  <script src="app.js?v=20-20261021" defer></script>
-</head>
-<body>
-<div id="siteFrame">
-  <header class="site-header">
-    <a href="#inicio" class="wordmark" data-view="home" aria-label="EFEDEGAM, ir a inicio">EFEDEGAM</a>
-    <nav aria-label="Navegación principal" class="nav">
-      <a href="#archivo" data-view="archive">Archivo <span aria-hidden="true">↗</span></a>
-      <a href="#sobre-mi" data-view="about">Sobre esto</a>
-    </nav>
-    <span class="nav-edition">PORTFOLIO PERSONAL<br>EDICIÓN 001 / 2026</span>
-  </header>
-  <main>
-    <section id="homeView" class="view view-home home-detective" aria-labelledby="homeTitle">
-  <h1 class="visually-hidden" id="homeTitle">EFEDEGAM — Archivo personal</h1>
-  <div class="detective-entry room-entry" id="detectiveEntry">
-    <div class="room-scene" id="roomScene" aria-label="Sala de archivadores; borrador arquitectónico en perspectiva">
-      <div class="room-world" id="roomWorld">
-        <div class="room-ceiling" aria-hidden="true"><div class="room-ceiling-grid"></div></div>
-        <div class="room-side room-side--left" aria-hidden="true"></div>
-        <div class="room-side room-side--right" aria-hidden="true"></div>
-        <div class="room-rear">
-          <div id="archiveView" class="view-archive archive-wall-view" role="region" aria-labelledby="archiveTitle">
-            <h2 id="archiveTitle" class="visually-hidden">Archivo de proyectos. Pared de cajones metálicos.</h2>
-            <div class="archive-stage archive-stage-v6">
-              <div class="archive-wall" id="cabinet" aria-label="Pared de cajones blancos con proyectos en el 023, El Vacío en el 099 y pequeños objetos personales: planta, negativos analógicos, teléfono y ticket.">
-                <div class="archive-drawers" id="cabinetCells"></div>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#e4e6e1" />
+    <meta
+      name="description"
+      content="EFEDEGAM: archivo personal de arquitectura, fotomontajes, dibujos y experimentos."
+    />
+    <title>EFEDEGAM — Archivo personal</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link
+      rel="preload"
+      href="assets/moqueta-verde-terciopelo-v13.jpg"
+      as="image"
+    />
+    <link rel="preload" href="assets/plant-sprout-v15.svg" as="image" />
+    <link rel="preload" href="assets/telefono-oliva-v18.svg" as="image" />
+    <link rel="stylesheet" href="styles.css" />
+    <script type="module" src="scripts/app.js"></script>
+  </head>
+  <body>
+    <div id="siteFrame">
+      <header class="site-header">
+        <a
+          href="#inicio"
+          class="wordmark"
+          data-view="home"
+          aria-label="EFEDEGAM, ir a inicio"
+          >EFEDEGAM</a
+        >
+        <nav aria-label="Navegación principal" class="nav">
+          <a href="#archivo" data-view="archive"
+            >Archivo <span aria-hidden="true">↗</span></a
+          >
+          <a href="#sobre-mi" data-view="about">Sobre esto</a>
+        </nav>
+        <span class="nav-edition"
+          >PORTFOLIO PERSONAL<br />EDICIÓN 001 / 2026</span
+        >
+      </header>
+      <main>
+        <section
+          id="homeView"
+          class="view view-home home-room"
+          aria-labelledby="homeTitle"
+        >
+          <h1 class="visually-hidden" id="homeTitle">
+            EFEDEGAM — Archivo personal
+          </h1>
+          <div class="room-entry" id="detectiveEntry">
+            <div
+              class="room-scene"
+              id="roomScene"
+              aria-label="Sala de archivadores; borrador arquitectónico en perspectiva"
+            >
+              <div class="room-world" id="roomWorld">
+                <div class="room-ceiling" aria-hidden="true">
+                  <div class="room-ceiling-grid"></div>
+                </div>
+                <div class="room-side room-side--left" aria-hidden="true"></div>
+                <div
+                  class="room-side room-side--right"
+                  aria-hidden="true"
+                ></div>
+                <div class="room-rear">
+                  <div
+                    id="archiveView"
+                    class="view-archive archive-wall-view"
+                    role="region"
+                    aria-labelledby="archiveTitle"
+                  >
+                    <h2 id="archiveTitle" class="visually-hidden">
+                      Archivo de proyectos. Pared de cajones metálicos.
+                    </h2>
+                    <div class="archive-stage">
+                      <div
+                        class="archive-wall"
+                        id="cabinet"
+                        aria-label="Pared de cajones blancos con proyectos en el 023, El Vacío en el 099 y pequeños objetos personales: planta, negativos analógicos, teléfono y ticket."
+                      >
+                        <div class="archive-drawers" id="cabinetCells"></div>
+                      </div>
+                      <div class="archive-atmosphere" aria-hidden="true"></div>
+                      <p
+                        id="drawerInstruction"
+                        class="visually-hidden"
+                        role="status"
+                        aria-live="polite"
+                      >
+                        Selecciona el cajón 023 para explorar los proyectos.
+                      </p>
+                    </div>
+                    <div
+                      class="touch-files"
+                      id="touchFiles"
+                      aria-label="Acceso táctil a carpetas"
+                      hidden
+                    >
+                      <h3>Carpetas de proyectos</h3>
+                      <div id="touchFileButtons"></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="room-baseboard" aria-hidden="true"></div>
+                <div class="room-carpet" aria-hidden="true"></div>
+                <div class="room-coldlight" aria-hidden="true"></div>
               </div>
-              <div class="archive-atmosphere" aria-hidden="true"></div>
-              <p id="drawerInstruction" class="visually-hidden" role="status" aria-live="polite">Selecciona el cajón 023 para explorar los proyectos.</p>
-            </div>
-            <div class="touch-files" id="touchFiles" aria-label="Acceso táctil a carpetas" hidden>
-              <h3>Carpetas de proyectos</h3><div id="touchFileButtons"></div>
+              <div class="room-impact-flash" aria-hidden="true"></div>
+              <div
+                class="room-title-overlay"
+                id="roomIntroTitle"
+                aria-hidden="true"
+              >
+                <span class="room-title-kicker"
+                  >OBJETOS · IDEAS · PROYECTOS · OTRAS COSAS</span
+                >
+                <strong>EFEDEGAM</strong>
+                <span class="room-title-sub"
+                  >UN ARCHIVO PERSONAL · EST. 2026</span
+                >
+              </div>
+              <button type="button" class="room-skip-intro" id="skipRoomIntro">
+                Saltar presentación ↗
+              </button>
+              <span
+                class="room-view-status"
+                id="roomViewStatus"
+                aria-live="polite"
+                >Una sala por descubrir.</span
+              >
             </div>
           </div>
-
+        </section>
+        <section
+          id="voidView"
+          class="view-void"
+          hidden
+          aria-labelledby="voidTitle"
+        >
+          <h2 id="voidTitle" class="visually-hidden">
+            EL VACÍO — próximamente
+          </h2>
+          <a
+            href="#archivo"
+            class="void-back"
+            data-view="archive"
+            aria-label="Volver al archivador"
+            ><span aria-hidden="true">←</span> VOLVER AL ARCHIVO</a
+          >
+        </section>
+        <section
+          id="aboutView"
+          class="view view-about"
+          hidden
+          aria-labelledby="aboutTitle"
+        >
+          <div class="about-content">
+            <span class="eyebrow">UNA NOTA AL MARGEN / 003</span>
+            <h2 id="aboutTitle">Un poco<br />de <em>todo.</em></h2>
+            <p>
+              Este es mi portfolio personal: un sitio para juntar arquitectura,
+              dibujos, fotomontajes, objetos y experimentos. Sin demasiadas
+              formalidades y, de momento, con carpetas aún por rellenar.
+            </p>
+            <button class="enter-button" type="button" data-view="archive">
+              Echar un vistazo al archivo <span aria-hidden="true">↗</span>
+            </button>
+            <div class="about-note">EN CONSTANTE CONSTRUCCIÓN ✳</div>
+          </div>
+        </section>
+      </main>
+      <footer class="site-footer">
+        <span>EFEDEGAM © 2026</span
+        ><span>UN ARCHIVO PERSONAL / NO UN CATÁLOGO</span
+        ><a href="#inicio" data-view="home">Volver arriba ↑</a>
+      </footer>
+      <div
+        class="project-modal"
+        id="projectModal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="projectTitle"
+        aria-hidden="true"
+        hidden
+      >
+        <div class="project-panel">
+          <div class="project-panel-top">
+            <span id="projectRef">FICHA DE ARCHIVO / 001</span
+            ><span class="casefile-classification"
+              >DOCUMENTACIÓN RESERVADA • EFEDEGAM</span
+            ><button
+              type="button"
+              id="closeProject"
+              class="close-project"
+              aria-label="Cerrar proyecto"
+            >
+              ×
+            </button>
+          </div>
+          <div class="project-panel-grid">
+            <div class="project-placeholder" id="projectArtwork">
+              <div class="placeholder-pattern"></div>
+              <span id="projectArtNo">001</span
+              ><strong id="projectWord">ARCHIVO</strong>
+            </div>
+            <div class="project-panel-info">
+              <span class="casefile-flag"
+                >EXPEDIENTE / INVESTIGACIÓN VISUAL</span
+              >
+              <span class="project-eyebrow" id="projectCategory"
+                >ARQUITECTURA</span
+              >
+              <h3 id="projectTitle">Espacios imaginados</h3>
+              <p id="projectDescription"></p>
+              <div class="demo-note">
+                FICHA DE EJEMPLO · PENDIENTE DE INCORPORAR PROYECTOS REALES
+              </div>
+              <button type="button" class="enter-button" id="nextProject">
+                Siguiente carpeta <span aria-hidden="true">↗</span>
+              </button>
+            </div>
+          </div>
         </div>
-        <div class="room-baseboard" aria-hidden="true"></div>
-        <div class="room-carpet" aria-hidden="true"></div>
-        <div class="room-coldlight" aria-hidden="true"></div>
-      </div>
-      <div class="room-impact-flash" aria-hidden="true"></div>
-      <div class="room-title-overlay" id="roomIntroTitle" aria-hidden="true">
-        <span class="room-title-kicker">OBJETOS · IDEAS · PROYECTOS · OTRAS COSAS</span>
-        <strong>EFEDEGAM</strong>
-        <span class="room-title-sub">UN ARCHIVO PERSONAL · EST. 2026</span>
-      </div>
-      <button type="button" class="room-skip-intro" id="skipRoomIntro">Saltar presentación ↗</button>
-      <span class="room-view-status" id="roomViewStatus" aria-live="polite">Una sala por descubrir.</span>
-    </div>
-  </div>
-</section>
-    <section id="voidView" class="view-void" hidden aria-labelledby="voidTitle">
-      <h2 id="voidTitle" class="visually-hidden">EL VACÍO — próximamente</h2>
-      <a href="#archivo" class="void-back" data-view="archive" aria-label="Volver al archivador"><span aria-hidden="true">←</span> VOLVER AL ARCHIVO</a>
-    </section>
-    <section id="aboutView" class="view view-about" hidden aria-labelledby="aboutTitle">
-      <div class="about-content">
-        <span class="eyebrow">UNA NOTA AL MARGEN / 003</span>
-        <h2 id="aboutTitle">Un poco<br>de <em>todo.</em></h2>
-        <p>Este es mi portfolio personal: un sitio para juntar arquitectura, dibujos, fotomontajes, objetos y experimentos. Sin demasiadas formalidades y, de momento, con carpetas aún por rellenar.</p>
-        <button class="enter-button" type="button" data-view="archive">Echar un vistazo al archivo <span aria-hidden="true">↗</span></button>
-        <div class="about-note">EN CONSTANTE CONSTRUCCIÓN ✳</div>
-      </div>
-    </section>
-  </main>
-  <footer class="site-footer"><span>EFEDEGAM © 2026</span><span>UN ARCHIVO PERSONAL / NO UN CATÁLOGO</span><a href="#inicio" data-view="home">Volver arriba ↑</a></footer>
-  <div class="project-modal" id="projectModal" role="dialog" aria-modal="true" aria-labelledby="projectTitle" aria-hidden="true" hidden>
-    <div class="project-panel">
-      <div class="project-panel-top"><span id="projectRef">FICHA DE ARCHIVO / 001</span><span class="casefile-classification">DOCUMENTACIÓN RESERVADA • EFEDEGAM</span><button type="button" id="closeProject" class="close-project" aria-label="Cerrar proyecto">×</button></div>
-      <div class="project-panel-grid">
-        <div class="project-placeholder" id="projectArtwork"><div class="placeholder-pattern"></div><span id="projectArtNo">001</span><strong id="projectWord">ARCHIVO</strong></div>
-        <div class="project-panel-info">
-          <span class="casefile-flag">EXPEDIENTE / INVESTIGACIÓN VISUAL</span>
-          <span class="project-eyebrow" id="projectCategory">ARQUITECTURA</span>
-          <h3 id="projectTitle">Espacios imaginados</h3>
-          <p id="projectDescription"></p>
-          <div class="demo-note">FICHA DE EJEMPLO · PENDIENTE DE INCORPORAR PROYECTOS REALES</div>
-          <button type="button" class="enter-button" id="nextProject">Siguiente carpeta <span aria-hidden="true">↗</span></button>
-        </div>
       </div>
     </div>
-  </div>
-</div>
-<div class="void-transition" id="voidTransition" hidden aria-hidden="true"><div class="void-warp" aria-hidden="true"><div class="void-spiral"></div><div class="void-event-horizon"></div><div class="void-light-ring"></div><div class="void-core"></div></div></div>
-<svg class="void-svg-filters" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs><filter id="void-distortion" x="-25%" y="-25%" width="150%" height="150%"><feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="2" seed="8" result="noise"/><feDisplacementMap in="SourceGraphic" in2="noise" scale="44" xChannelSelector="R" yChannelSelector="G"/></filter></defs></svg>
-<div class="transition-screen" id="transitionScreen" aria-hidden="true"><span>abriendo archivos ↗</span></div>
-<div class="cursor-lens" id="cursorLens" aria-hidden="true">
-  <div class="cursor-glass"><div class="cursor-replica" id="cursorReplica"></div></div>
-  <div class="cursor-glare"></div><div class="cursor-handle"></div>
-</div>
-</body>
+    <div class="void-transition" id="voidTransition" hidden aria-hidden="true">
+      <div class="void-warp" aria-hidden="true">
+        <div class="void-spiral"></div>
+        <div class="void-event-horizon"></div>
+        <div class="void-light-ring"></div>
+        <div class="void-core"></div>
+      </div>
+    </div>
+    <svg
+      class="void-svg-filters"
+      aria-hidden="true"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <defs>
+        <filter
+          id="void-distortion"
+          x="-25%"
+          y="-25%"
+          width="150%"
+          height="150%"
+        >
+          <feTurbulence
+            type="fractalNoise"
+            baseFrequency="0.012"
+            numOctaves="2"
+            seed="8"
+            result="noise"
+          />
+          <feDisplacementMap
+            in="SourceGraphic"
+            in2="noise"
+            scale="44"
+            xChannelSelector="R"
+            yChannelSelector="G"
+          />
+        </filter>
+      </defs>
+    </svg>
+    <div class="transition-screen" id="transitionScreen" aria-hidden="true">
+      <span>abriendo archivos ↗</span>
+    </div>
+    <div class="cursor-lens" id="cursorLens" aria-hidden="true">
+      <div class="cursor-glass">
+        <div class="cursor-replica" id="cursorReplica"></div>
+      </div>
+      <div class="cursor-glare"></div>
+      <div class="cursor-handle"></div>
+    </div>
+  </body>
 </html>
