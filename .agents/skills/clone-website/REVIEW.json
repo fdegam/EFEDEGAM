@@ -1,0 +1,13 @@
+{
+  "source": "https://github.com/JCodesMore/ai-website-cloner-template",
+  "commit": "ee3f5a2f31fd549b9593fa4f7cf6d2955ee593bb",
+  "review_date": "2026-11-01",
+  "scope": "Skill and two references only; not the Next.js application or its dependencies. Static review; no security guarantee.",
+  "local_changes": "Added owner privacy rules to SKILL.md; included upstream MIT license.",
+  "sha256": {
+    "SKILL.md": "3d9e73a81726ca5f5bcfa5b64ea98f9a20234b10ee457a49fa2a7b5c81848e93",
+    "LICENSE": "cfe9368816ead6d3b0a9e0d851dcab796885c72e7b479cff1c7939debea0826d",
+    "references/inspection-guide.md": "cc86abb90f420019e5e111bab162718cc9a04592c0044687432d3b6dce2e8d4e",
+    "references/framer-and-motion.md": "8c84ee7a399d7751f995018a44305ca470cf915a50ba95a20efabbdd078f3e52"
+  }
+}

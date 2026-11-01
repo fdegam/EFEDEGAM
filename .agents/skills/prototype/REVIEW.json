@@ -1,0 +1,12 @@
+{
+  "source": "https://github.com/emilkowalski/skills",
+  "commit": "a81dbca07f2217b7103e510c0f13f8d5b017afc9",
+  "review_date": "2026-11-01",
+  "scope": "Static instruction and risk-pattern review, no execution or dependency audit. No safety guarantee.",
+  "local_changes": "Owner security rules added; upstream MIT license included.",
+  "sha256": {
+    "PICKER.md": "31a55eec94715cc79942e91e172e539e3031dcd5e2e5ee7c1446cf2caee960a6",
+    "SKILL.md": "a2f13f85591ce8adaf69fa50c85792ccb503216be2e0d928d0eeb0d1ba3df300",
+    "LICENSE": "4ff5bdb7887ec1435c9cab0e8d1a7caee704d894d65c2a008ccc68b1cc2f260b"
+  }
+}
