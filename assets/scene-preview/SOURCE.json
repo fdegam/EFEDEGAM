@@ -1,0 +1,6 @@
+{
+  "origin": "Rendered locally from owner-provided Espacio_Portfolio.blend using its active reference camera.",
+  "renderer": "Blender 4.3.2, Cycles CPU, 64 samples, 1280 x 720.",
+  "purpose": "Static fallback when WebGL cannot start or is interrupted; not a screenshot of the interactive renderer.",
+  "sha256": "ca81e529529f1fa6bd3dc1da722eb87081b2b7d2dc8d2af84b184ae56ccf81cd"
+}

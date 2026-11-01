@@ -1,0 +1,26 @@
+{
+  "camera": {
+    "position": [
+      0.0,
+      0.7400002479553223,
+      6.549999713897705
+    ],
+    "quaternion": [
+      0.0,
+      0.0,
+      0.0,
+      0.9999999403953552
+    ],
+    "fov": 49.42635311494791,
+    "referenceAspect": 1.7777777777777777
+  },
+  "walkBounds": {
+    "minX": -3.05,
+    "maxX": 3.05,
+    "minZ": 1.0,
+    "maxZ": 6.9
+  },
+  "projectDrawer": "CAJON_C07_F06",
+  "drawerTravel": 0.34,
+  "source": "Owner-provided room; exported without scripts, custom properties, source paths, cameras or lights."
+}
