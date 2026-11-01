@@ -1,0 +1,8 @@
+/* Native project details remain available when scripting is disabled. */
+#sceneError[hidden] {
+  display: block !important;
+}
+#loadingState,
+.js-only {
+  display: none !important;
+}

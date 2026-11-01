@@ -4,9 +4,10 @@
   "subset": "latin (includes Spanish accented characters)",
   "downloads": {
     "https://fonts.gstatic.com/s/dmmono/v16/aFTU7PB1QTsUX8KYthqQBA.woff2": "dm-mono-e1896b13b2b1.woff2",
-    "https://fonts.gstatic.com/s/dmmono/v16/aFTR7PB1QTsUX8KYvumzEYOtbQ.woff2": "dm-mono-9964608a8493.woff2",
-    "https://fonts.gstatic.com/l/font?kit=rP2-p2ywxg089UriI5-g4vlH9VoD8CmcqZG40F9JadbnoEwAopwDRUUHvP-6oMc49xLtf0DPCg&skey=cd068b3e1b767e51&v=v17": "dm-sans-3c9a5ced0f41.woff2",
-    "https://fonts.gstatic.com/l/font?kit=nuFeD-vYSZviVYUb_rj3ij__anPXDTnCjmHKM4nYO7KN_pqTDN3oCIU3oE2BEqj_M4vjR0g&skey=f57a6d1e6bccdd9c&v=v40": "playfair-display-c55be9a22b26.woff2",
-    "https://fonts.gstatic.com/l/font?kit=nuFcD-vYSZviVYUb_rj3ij__anPXJzDwcbmjWBN2PKd3vSLbRiIwYe6tDkqUPez5cLvh&skey=f3b68f0152604ed9&v=v40": "playfair-display-1fc2d9aefd38.woff2"
-  }
+    "https://fonts.gstatic.com/l/font?kit=rP2-p2ywxg089UriI5-g4vlH9VoD8CmcqZG40F9JadbnoEwAopwDRUUHvP-6oMc49xLtf0DPCg&skey=cd068b3e1b767e51&v=v17": "dm-sans-3c9a5ced0f41.woff2"
+  },
+  "retained_faces": [
+    "DM Sans 400\u2013700",
+    "DM Mono 400"
+  ]
 }

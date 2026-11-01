@@ -319,6 +319,7 @@ function showError(message) {
   announce(message);
 }
 async function start() {
+  viewport.setAttribute("aria-busy", "true");
   try {
     const response = await fetch("assets/models/room.json");
     if (!response.ok) throw new Error("Room configuration unavailable");
@@ -455,7 +456,7 @@ async function start() {
       error instanceof Error ? error.message : "unknown error",
     );
     showError(
-      "No se ha podido mostrar la sala 3D en este dispositivo. Puedes entrar al archivo o reintentarlo.",
+      "No se ha podido mostrar la sala 3D en este dispositivo. Las carpetas siguen disponibles aquí; también puedes reintentarlo.",
     );
   }
 }
@@ -566,7 +567,7 @@ reduced.addEventListener("change", () => {
 canvas.addEventListener("webglcontextlost", (event) => {
   event.preventDefault();
   showError(
-    "Se ha interrumpido la vista 3D. Puedes reintentarlo o continuar al archivo.",
+    "Se ha interrumpido la vista 3D. Puedes reintentarlo o consultar las carpetas aquí mismo.",
   );
 });
 start();

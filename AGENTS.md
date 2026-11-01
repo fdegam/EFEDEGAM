@@ -15,3 +15,7 @@ Lee [REFERENCIAS.md](REFERENCIAS.md) cuando el propietario pida referencias, ins
 ## Desarrollo
 
 Consulta [README.md](README.md) para la estructura, el arranque y las comprobaciones. Conserva los cambios locales existentes. Usa el checkout actual; no crees worktrees salvo petición explícita del propietario.
+
+## Dirección del portfolio
+
+La sala 3D es el portfolio y se carga directamente desde `index.html`. No es una sección secundaria ni requiere un menú de acceso. Conserva las fichas y la alternativa accesible dentro de la misma página; no recuperes la antigua sala CSS ni una portada intermedia. `espacio.html` solo redirige a la entrada principal para mantener enlaces antiguos.

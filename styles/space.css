@@ -112,12 +112,6 @@ button:active:not(:disabled) {
   letter-spacing: 0.1em;
   color: #586454;
 }
-.portfolio-link {
-  font-size: 12px;
-}
-.portfolio-link span {
-  margin-left: 8px;
-}
 .scene-viewport {
   position: fixed;
   inset: 0;
@@ -199,25 +193,8 @@ button:active:not(:disabled) {
   font-size: 14px;
   line-height: 1.6;
 }
-.scene-error a {
-  display: inline-block;
-  margin: 12px 18px 0 0;
-  text-decoration: underline;
-}
 .scene-error button {
   padding: 9px 13px;
-}
-.no-script {
-  position: absolute;
-  top: 40%;
-  left: 20px;
-  right: 20px;
-  background: var(--paper);
-  padding: 20px;
-  text-align: center;
-}
-.no-script a {
-  text-decoration: underline;
 }
 .project-hotspot {
   position: absolute;
@@ -481,9 +458,6 @@ button:active:not(:disabled) {
   .space-edition {
     display: none;
   }
-  .portfolio-link {
-    font-size: 11px;
-  }
   .space-bottom {
     left: 16px;
     right: 16px;
@@ -626,5 +600,46 @@ body.has-selection .movement-help {
     bottom: -18px;
     margin: 0 -18px -18px;
     padding: 11px 18px;
+  }
+}
+
+/* The fallback stays inside this same room and URL; it is also readable
+   without JavaScript, through the small noscript stylesheet. */
+.scene-error {
+  width: min(600px, calc(100% - 32px));
+  max-height: calc(100svh - 160px);
+  overflow: auto;
+  scrollbar-width: thin;
+}
+.fallback-projects {
+  margin-top: 22px;
+}
+.fallback-projects details {
+  border-top: 1px solid var(--line);
+}
+.fallback-projects summary {
+  padding: 15px 0;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+}
+.fallback-projects summary:focus-visible {
+  outline: 2px solid #a5682e;
+  outline-offset: 3px;
+}
+.fallback-projects details > p {
+  margin: 0 0 16px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.fallback-projects .fallback-category {
+  font: 10px var(--mono);
+  color: #53604f;
+  margin-bottom: 10px;
+}
+@media (max-width: 760px) {
+  .scene-error {
+    max-height: calc(100svh - 100px);
+    padding: 22px;
   }
 }

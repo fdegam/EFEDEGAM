@@ -54,7 +54,7 @@ class SpaceChecks(unittest.TestCase):
         self.assertEqual(self.failed, [], 'Missing resources')
 
     def load(self):
-        self.page.goto(self.url + '/espacio.html', wait_until='networkidle')
+        self.page.goto(self.url + '/', wait_until='networkidle')
         expect(self.page.locator('#sceneViewport')).to_have_class(re.compile('is-ready'), timeout=45000)
 
     def state(self):
@@ -189,10 +189,13 @@ class SpaceChecks(unittest.TestCase):
             return original.call(this, type, ...args);
           };
         })();''')
-        self.page.goto(self.url + '/espacio.html', wait_until='networkidle')
+        self.page.goto(self.url + '/', wait_until='networkidle')
         expect(self.page.locator('#sceneError')).to_be_visible()
         expect(self.page.locator('#scenePoster')).to_be_visible()
-        expect(self.page.locator('#sceneError a')).to_have_attribute('href', 'index.html#archivo')
+        expect(self.page.locator('#fallbackProjects details')).to_have_count(6)
+        first = self.page.locator('#fallbackProjects details').first
+        first.locator('summary').click()
+        expect(first.locator('p').last).to_be_visible()
         expect(self.page.locator('#sceneViewport')).to_have_attribute('aria-busy', 'false')
 
     def test_animated_focus_completes_and_idle_render_stops(self):

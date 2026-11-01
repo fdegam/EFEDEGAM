@@ -1,8 +1,8 @@
-# Espacio interactivo del portfolio · v1 local
+# Espacio interactivo del portfolio
 
 ## Estado y alcance
 
-La primera versión está implementada en `espacio.html`, como extensión del portfolio existente. Usa la sala aportada por el propietario y conserva su identidad: los controles heredan DM Sans local y la paleta crema/oliva. No sustituye la sala CSS ni inaugura un diseño independiente.
+La sala 3D es la experiencia principal y completa del portfolio: `index.html` la carga directamente al entrar. Se han retirado la portada, la antigua sala CSS y sus menús. `espacio.html` solo redirige a la raíz para conservar enlaces antiguos. Los controles mantienen DM Sans local y la paleta crema/oliva.
 
 El encuadre inicial procede de la cámara activa de referencia del archivo Blender: frontal, centrado, con archivadores al fondo, techo luminoso y moqueta verde. Sus metadatos de posición, orientación, campo de visión y relación de aspecto están exportados en `assets/models/room.json`.
 
@@ -16,15 +16,15 @@ Desde la raíz del repositorio:
 python3 -m http.server 8000 --bind 127.0.0.1
 ```
 
-Abre `http://127.0.0.1:8000/espacio.html`, o entra al portfolio en ese mismo servidor y pulsa «Sala 3D». Los módulos requieren HTTP; no abras el archivo con `file://`. Ctrl+C detiene el servidor.
+Abre la raíz del servidor: la sala aparece directamente, sin pasar por un menú. Los módulos requieren HTTP; no abras el archivo con `file://`. Ctrl+C detiene el servidor.
 
 - Arrastra sobre la sala para orientar la mirada. No se activa captura del ratón ni pantalla completa automáticamente.
 - Enfoca el lienzo mediante clic o Tab y usa WASD o las flechas para caminar. La cruceta visible permite avanzar, retroceder y desplazarse lateralmente. Una pulsación en el suelo lleva a ese punto dentro de los límites de navegación. La rueda o la pinza táctil permiten avanzar y retroceder.
 - Pulsa el marcador «Proyectos 023», el propio cajón seleccionado en 3D o «Ir a proyectos» para acercarte. El arrastre se distingue de la pulsación.
 - Pulsa «Abrir cajón». Las seis carpetas físicas y la lista HTML abren las mismas fichas; la lista permite acceder por teclado. «Siguiente carpeta» recorre los proyectos.
-- Cierra la ficha con su botón o Escape. «Volver a explorar», el cierre del panel o Escape sin ficha abierta recuperan la posición anterior al acercamiento. «Vista inicial» vuelve al encuadre de referencia y cierra el cajón. «Ver portfolio» vuelve al archivo original.
+- Cierra la ficha con su botón o Escape. «Volver a explorar», el cierre del panel o Escape sin ficha abierta recuperan la posición anterior al acercamiento. «Vista inicial» vuelve al encuadre de referencia y cierra el cajón. Las fichas y todos los controles pertenecen a esta misma sala; no hay otro portfolio al que volver.
 
-El desplazamiento se limita a un rectángulo de suelo libre delante de los archivadores; no es un sistema general de colisiones. La preferencia `prefers-reduced-motion` elimina los vuelos de cámara y la animación de apertura. Si WebGL no arranca o se interrumpe, aparece la imagen estática, acceso al archivo original y «Reintentar». Sin JavaScript se ofrece un enlace al portfolio.
+El desplazamiento se limita a un rectángulo de suelo libre delante de los archivadores; no es un sistema general de colisiones. La preferencia `prefers-reduced-motion` elimina los vuelos de cámara y la animación de apertura. Si WebGL no arranca o se interrumpe, aparece la imagen estática y las seis fichas nativas dentro de la misma página, junto a «Reintentar». Sin JavaScript, esas mismas fichas se pueden leer y desplegar. El contenido se sincroniza desde `scripts/projects.js` mediante `node tools/update_project_fallback.mjs`.
 
 ## Recursos y exportación reproducible
 
@@ -54,7 +54,7 @@ python3 tests/check_space.py
 
 La suite 3D comprueba el encuadre exportado, recursos locales, agrupación de cajones repetidos, movimiento y límites, arrastre sin selección accidental, apertura y seis fichas, controles táctiles, alternativa sin WebGL, finalización de transiciones y cese del renderizado en reposo. Usa WebGL por software; no demuestra rendimiento en teléfonos reales. Las comprobaciones automatizadas tampoco sustituyen una revisión visual y de uso en dispositivos físicos.
 
-La iluminación y los materiales del navegador son una aproximación al aspecto de Blender. La imagen de respaldo usa otro renderizador y puede diferir. Quedan fuera de esta entrega la interacción con todos los cajones, las animaciones originales y la sustitución de las fichas de ejemplo. Ampliar ese alcance o reemplazar la sala original es trabajo futuro.
+La iluminación y los materiales del navegador son una aproximación al aspecto de Blender. La imagen de respaldo usa otro renderizador y puede diferir. Quedan fuera de esta entrega la interacción con todos los cajones, las animaciones originales y la sustitución de las fichas de ejemplo. Ampliar la interacción al resto de cajones es trabajo futuro; la sala 3D ya es la entrada principal.
 
 ## Referencia y privacidad
 
