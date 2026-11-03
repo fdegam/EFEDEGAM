@@ -174,6 +174,68 @@ class SpaceChecks(unittest.TestCase):
         self.assertTrue(self.state()['selected'])
         expect(self.page.locator('#drawerPanel')).to_be_visible()
 
+    def test_entrance_sequence_brakes_in_front_of_archive(self):
+        self.page.emulate_media(reduced_motion='no-preference')
+        self.page.goto(self.url + '/', wait_until='networkidle')
+        expect(self.page.locator('#sceneViewport')).to_have_class(re.compile('is-ready'), timeout=45000)
+        self.assertTrue(self.state()['intro'])
+        expect(self.page.locator('#skipIntro')).to_be_visible()
+        start = self.state()['camera']['position'][2]
+        samples = []
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline:
+            s = self.state()
+            samples.append(s['camera']['position'][2])
+            if not s['intro']:
+                break
+            self.page.wait_for_timeout(20)
+        final = self.state()
+        self.assertFalse(final['intro'], 'Entrance must end by itself')
+        self.assertAlmostEqual(final['camera']['position'][2], 3.9, places=3)
+        self.assertGreater(start, 6, 'The entrance starts far from the archive')
+        self.assertEqual(final['openDrawers'], [])
+        expect(self.page.locator('#introTitle')).to_be_hidden()
+        expect(self.page.locator('#walkControls')).to_be_visible()
+
+    def test_skip_entrance(self):
+        self.page.emulate_media(reduced_motion='no-preference')
+        self.page.goto(self.url + '/', wait_until='networkidle')
+        expect(self.page.locator('#skipIntro')).to_be_visible(timeout=45000)
+        self.page.locator('#skipIntro').click()
+        state = self.state()
+        self.assertFalse(state['intro'])
+        self.assertAlmostEqual(state['camera']['position'][2], 3.9, places=4)
+
+    def test_every_drawer_opens_independently(self):
+        self.load()
+        self.assertEqual(self.state()['drawerCount'], 156)
+        self.page.locator('#roomCanvas').evaluate("canvas => {for(let i=0;i<14;i++)canvas.dispatchEvent(new WheelEvent('wheel',{deltaY:-1000,cancelable:true}));}")
+        for drawer in ['C05_F07', 'C08_F10']:
+            point = self.page.evaluate("async id => (await import('./scripts/space/app.js')).getRoomState().drawerScreen(id)", drawer)
+            self.page.mouse.click(point['x'] - 30, point['y'] + 12)
+        self.assertEqual(sorted(self.state()['openDrawers']), ['C05_F07', 'C08_F10'])
+        self.assertFalse(self.state()['selected'], 'Plain drawers open in place')
+        point = self.page.evaluate("async () => (await import('./scripts/space/app.js')).getRoomState().drawerScreen('C05_F07')")
+        self.page.mouse.click(point['x'] - 30, point['y'] + 12)
+        self.assertEqual(self.state()['openDrawers'], ['C08_F10'])
+        self.page.locator('#resetCamera').click()
+        self.assertEqual(self.state()['openDrawers'], [])
+
+    def test_named_drawers_keep_their_names(self):
+        self.load()
+        tags = self.page.locator('.drawer-tag')
+        expect(tags).to_have_count(5)
+        names = [t.lower() for t in tags.all_inner_texts()]
+        for name in ['el vacío', 'planta pixelada', 'película analógica', 'teléfono', 'ticket']:
+            self.assertTrue(any(name in t for t in names), name)
+        self.page.locator('.drawer-tag', has_text='EL VACÍO').click()
+        self.assertEqual(self.state()['selected'], 'C11_F05')
+        expect(self.page.locator('#drawerTitle')).to_have_text('El vacío')
+        expect(self.page.locator('#drawerCode')).to_have_text('CAJÓN 099')
+        self.page.locator('#toggleDrawer').click()
+        self.assertIn('C11_F05', self.state()['openDrawers'])
+        expect(self.page.locator('#projectChoices')).to_be_hidden()
+
     def test_context_loss_restores_static_poster(self):
         self.load()
         self.page.locator('#roomCanvas').dispatch_event('webglcontextlost', {'cancelable':True})

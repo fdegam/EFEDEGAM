@@ -11,8 +11,66 @@
       0.0,
       0.9999999403953552
     ],
-    "fov": 49.42635311494791,
-    "referenceAspect": 1.7777777777777777
+    "fov": 44.49804671835056,
+    "referenceAspect": 2.0
+  },
+  "cameras": {
+    "CAM_01_Referencia": {
+      "position": [
+        0.0,
+        0.7400002479553223,
+        6.549999713897705
+      ],
+      "quaternion": [
+        0.0,
+        0.0,
+        0.0,
+        0.9999999403953552
+      ],
+      "fov": 44.49804671835056
+    },
+    "CAM_02_Recorrido": {
+      "position": [
+        0.0,
+        1.5499999523162842,
+        5.5
+      ],
+      "quaternion": [
+        -0.009089916944503784,
+        0.0,
+        0.0,
+        0.9999586343765259
+      ],
+      "fov": 41.11208997852947
+    },
+    "CAM_03_Lateral": {
+      "position": [
+        -2.249999761581421,
+        1.3499997854232788,
+        4.59999942779541
+      ],
+      "quaternion": [
+        -0.0047560036182403564,
+        -0.22549819946289062,
+        -0.0011008307337760925,
+        0.9742313623428345
+      ],
+      "fov": 39.59775478043924
+    },
+    "CAM_04_Cajones": {
+      "position": [
+        1.0499999523162842,
+        1.2000000476837158,
+        1.6499998569488525
+      ],
+      "quaternion": [
+        0.012269973754882812,
+        0.27956485748291016,
+        -0.0035730600357055664,
+        0.9600417613983154
+      ],
+      "fov": 31.41727710885023
+    }
   },
   "walkBounds": {
     "minX": -3.05,
@@ -20,7 +78,54 @@
     "minZ": 1.0,
     "maxZ": 6.9
   },
+  "grid": {
+    "columns": 13,
+    "rows": 12
+  },
   "projectDrawer": "CAJON_C07_F06",
   "drawerTravel": 0.34,
+  "lightmaps": {
+    "room": {
+      "file": "lightmaps/room.webp",
+      "intensity": 8.37713424686641,
+      "meshes": [
+        "Room_Architecture"
+      ]
+    },
+    "archive": {
+      "file": "lightmaps/archive.webp",
+      "intensity": 4.987908932508035,
+      "meshes": [
+        "Archive_Structure",
+        "GEOMETRIA_*"
+      ]
+    }
+  },
+  "environment": {
+    "file": "lightmaps/env.webp",
+    "intensity": 1.17912757396698,
+    "use": "specular and sheen only"
+  },
+  "exposure": 1.3,
+  "materialTuning": {
+    "Moqueta_verde_aterciopelada": {
+      "sheenColorScale": 2,
+      "specularIntensityScale": 3,
+      "lightMapScale": 4
+    },
+    "Juntas_sombra": {
+      "emissive": [
+        0.12,
+        0.12,
+        0.12
+      ]
+    }
+  },
+  "bake": {
+    "renderer": "Blender 5.2.3 LTS, Cycles CPU",
+    "samples": 96,
+    "pass": "Diffuse direct + indirect, no colour",
+    "toneMapping": "AgX"
+  },
   "source": "Owner-provided room; exported without scripts, custom properties, source paths, cameras or lights."
 }

@@ -1,8 +1,8 @@
 # EFEDEGAM · Archivo personal
 
-La sala 3D **es el portfolio**. Se carga directamente al entrar en la web, desde `index.html`, sin portada ni menú de acceso. Usa el espacio aportado en Blender y su cámara de referencia.
+La sala 3D **es el portfolio**. Se carga directamente al entrar en la web, desde `index.html`, sin portada ni menú de acceso. Usa el espacio aportado en Blender, su cámara de referencia y **la luz calculada por Cycles**, horneada en texturas.
 
-El cajón «Proyectos 023» permite acercarse, abrirlo y consultar seis fichas de ejemplo. Los demás cajones forman parte del espacio, pero todavía no tienen interacciones. Los trabajos y textos siguen siendo provisionales.
+Al entrar, una secuencia cinematográfica recorre la sala: espacio, EFEDEGAM, aceleración y frenazo frente al archivo. Los 156 cajones se abren y se cierran. El cajón «Proyectos 023» contiene seis fichas de ejemplo; otros cinco cajones tienen nombre (El vacío 099, Planta pixelada, Película analógica, Teléfono, Ticket), con su contenido pendiente. Los trabajos y textos siguen siendo provisionales.
 
 ## Desarrollo local
 
@@ -17,7 +17,9 @@ Abre la raíz del servidor en el navegador. Los módulos JavaScript requieren HT
 ## Uso
 
 - Arrastra para mirar alrededor. Con el lienzo enfocado, usa WASD o flechas para caminar. También hay controles en pantalla, desplazamiento al pulsar el suelo y avance/retroceso con rueda o pinza táctil.
-- Pulsa el cajón, su marcador o «Ir a proyectos» para acercarte; después abre el cajón y elige una carpeta física o una ficha de la lista.
+- «Saltar entrada», Escape o un clic terminan la secuencia inicial. Con movimiento reducido no se reproduce.
+- Pulsa cualquier cajón para abrirlo o cerrarlo. Los cajones con etiqueta acercan la cámara y muestran un panel.
+- Pulsa el cajón 023, su marcador o «Ir a proyectos» para acercarte; después abre el cajón y elige una carpeta física o una ficha de la lista.
 - «Volver a explorar» recupera la posición anterior. «Vista inicial» devuelve la cámara a su encuadre y cierra el cajón. Escape cierra primero la ficha y después permite volver a explorar.
 
 Si el dispositivo no puede mostrar WebGL, las mismas fichas se pueden consultar en la propia página, sobre la imagen estática de la sala. También están disponibles sin JavaScript. No existe una segunda versión del portfolio detrás de un menú.
@@ -29,14 +31,16 @@ Si el dispositivo no puede mostrar WebGL, las mismas fichas se pueden consultar 
 | `index.html`                        | Entrada única: sala, controles, fichas y alternativa nativa |
 | `styles/space.css`                  | Presentación y adaptación a pantallas                       |
 | `styles/noscript.css`               | Acceso a las fichas sin JavaScript                          |
-| `scripts/space/app.js`              | Renderizado, cajón, cámara y fichas                         |
+| `scripts/space/app.js`              | Renderizado, luz horneada, cajones, entrada y fichas        |
 | `scripts/space/navigation.js`       | Movimiento, gestos y límites de la sala                     |
 | `scripts/projects.js`               | Fuente editable de las fichas de ejemplo                    |
-| `assets/models/`                    | Modelo GLB y configuración de cámara                        |
+| `scripts/drawers.js`                | Los seis cajones con nombre y su posición                   |
+| `assets/models/`                    | Modelo GLB, texturas de luz y configuración                 |
 | `assets/scene-preview/`             | Imagen de respaldo y procedencia                            |
 | `assets/fonts/`                     | Fuentes locales y licencias                                 |
 | `vendor/three/`                     | Three.js local, licencia e integridad                       |
-| `tools/export_room.py`              | Exportación del modelo desde Blender                        |
+| `tools/bake_lightmaps.py`           | Horneado Cycles y exportación del modelo desde Blender      |
+| `tools/encode_lightmaps.py`         | Limpieza y codificación WebP de las texturas de luz         |
 | `tools/update_project_fallback.mjs` | Sincronización del contenido nativo con los proyectos       |
 | `tests/`                            | Comprobaciones de la entrada, acceso sin 3D e interacciones |
 
@@ -63,6 +67,6 @@ Cada programa inicia y cierra un servidor local. El primero comprueba la entrada
 
 ## Modelo, privacidad y publicación
 
-Consulta [ESPACIO_INTERACTIVO.md](docs/ESPACIO_INTERACTIVO.md) para los controles, la exportación y las limitaciones. El `.blend` original permanece fuera del repositorio. Three.js 0.180.0 y las fuentes se sirven localmente, sin CDN, rastreo ni claves. La iluminación del navegador todavía es una aproximación al render de Blender.
+Consulta [ESPACIO_INTERACTIVO.md](docs/ESPACIO_INTERACTIVO.md) para los controles, el horneado, la calibración y las limitaciones. El `.blend` original permanece fuera del repositorio. Three.js 0.180.0 y las fuentes se sirven localmente, sin CDN, rastreo ni claves. La luz difusa es la de Cycles; los brillos y el terciopelo de la moqueta se calibran contra el render de referencia.
 
 No guardes datos personales ni secretos en archivos, imágenes, capturas o historial. `.gitignore` ayuda a prevenir errores; no sustituye la revisión. Antes de subir o publicar, revisa los archivos y solicita autorización explícita del propietario. Un envío a `main` puede activar GitHub Pages si está configurado.

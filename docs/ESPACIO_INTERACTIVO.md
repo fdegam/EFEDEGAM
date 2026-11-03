@@ -2,62 +2,96 @@
 
 ## Estado y alcance
 
-La sala 3D es la experiencia principal y completa del portfolio: `index.html` la carga directamente al entrar. Se han retirado la portada, la antigua sala CSS y sus menús. `espacio.html` solo redirige a la raíz para conservar enlaces antiguos. Los controles mantienen DM Sans local y la paleta crema/oliva.
+La sala 3D es la experiencia principal y completa del portfolio: `index.html` la carga directamente al entrar. `espacio.html` solo redirige a la raíz para conservar enlaces antiguos. Los controles mantienen DM Sans local y la paleta crema/oliva.
 
-El encuadre inicial procede de la cámara activa de referencia del archivo Blender: frontal, centrado, con archivadores al fondo, techo luminoso y moqueta verde. Sus metadatos de posición, orientación, campo de visión y relación de aspecto están exportados en `assets/models/room.json`.
+La sala procede de `Espacio_Portfolio.blend` (Blender 4.3): habitación de 6,8 × 7,7 m, techo reticular de 36 paneles luminosos, moqueta verde aterciopelada y una pared de **156 cajones (13 columnas × 12 filas)**, cada uno con frente de 18 mm y cuerpo completo. El encuadre de referencia es la cámara activa `CAM_01_Referencia` del archivo.
 
-Solo el cajón `CAJON_C07_F06`, señalado como «Proyectos 023», es interactivo. Los demás cajones se renderizan, pero no se abren ni contienen navegación. El cajón interactivo ofrece las seis fichas de ejemplo que ya existen en `scripts/projects.js`, pendientes de trabajos reales.
+## Fidelidad visual: la luz es la de Cycles
 
-## Arranque y uso
+La iluminación no se imita con focos genéricos de Three.js. Se calcula en Blender con Cycles y se «hornea» en texturas:
 
-Desde la raíz del repositorio:
+- `assets/models/lightmaps/room.webp` y `archive.webp`: luz difusa directa e indirecta (rebotes incluidos) de las 4 luces de área y los 36 paneles emisivos. Cada uno de los 156 frentes tiene su celda propia en el atlas del archivo.
+- `assets/models/lightmaps/env.webp`: panorámica de 360° de la sala, renderizada con Cycles desde su centro. Se usa **solo** para brillos y para el terciopelo de la moqueta, que dependen del ángulo de visión. Su aportación difusa se elimina en el shader para no contar la luz dos veces.
+- El navegador usa la misma transformación de color que el archivo (AgX) y no tiene luces en tiempo real.
+
+Calibración frente al render de Cycles del encuadre de referencia (`assets/scene-preview/room.jpg`), guardada en `assets/models/room.json`:
+
+- `exposure: 1.3`.
+- Moqueta: en el `.blend` su color base es casi negro y su verde procede del _sheen_ de microfibra de Cycles 4.x, que devuelve mucha más luz que el _sheen_ de Three.js. Se ajusta con `sheenColorScale 2`, `specularIntensityScale 3` y `lightMapScale 4`, medidos fila a fila sobre el suelo. Con esos valores, el suelo queda a pocos niveles de Cycles.
+- `Juntas_sombra` (`emissive 0.12`): las rendijas de 8 mm entre paneles de pared son más finas que un píxel de la textura de luz.
+
+Diferencias conocidas: la moqueta tiene menos grano que en Cycles, que además incluye ruido de muestreo. Los tiradores, de unos 3 px en el atlas, quedan ligeramente más suaves.
+
+## Experiencia
+
+### Entrada (unos 4,6 s)
+
+1. **Espacio**: plano general desde la cámara de referencia, con un avance casi imperceptible.
+2. **Identidad**: aparece «EFEDEGAM · ARCHIVO PERSONAL» en verde tinta.
+3. **Movimiento**: aceleración fuerte (curva t^3,2); el rótulo sale despedido hacia la cámara.
+4. **Frenazo**: la cámara llega a máxima velocidad, se pasa unos 15 cm y retrocede con una oscilación amortiguada y un ligero cabeceo. La pared encaja el golpe: los cajones se desplazan 0,6–2 cm hacia fuera y vuelven a su sitio en onda desde el centro.
+5. **Interacción**: la cámara queda a 3,9 m del archivo (4,4 m en móvil), con la pared completa entre techo y moqueta.
+
+«Saltar entrada», Escape, Intro, un clic o un arrastre terminan la secuencia al instante. Con `prefers-reduced-motion` no hay entrada: se muestra directamente el encuadre de referencia. Para revisar sin entrada se puede añadir `?sinintro` a la dirección.
+
+### Cajones
+
+- **Todos los cajones se abren y se cierran** al pulsarlos. Se deslizan sobre su eje, sin atravesar el mueble.
+- Seis cajones tienen nombre y etiqueta. Al pulsarlos, la cámara se acerca y aparece un panel. Su ubicación sigue la composición de V20 y se edita en `scripts/drawers.js`:
+
+| Cajón (columna_fila) | Código | Nombre             | Estado                 |
+| -------------------- | ------ | ------------------ | ---------------------- |
+| C07_F06              | 023    | Proyectos          | Seis fichas de ejemplo |
+| C11_F05              | 099    | El vacío           | Contenido pendiente    |
+| C04_F09              |        | Planta pixelada    | Contenido pendiente    |
+| C04_F02              |        | Película analógica | Contenido pendiente    |
+| C11_F08              |        | Teléfono           | Contenido pendiente    |
+| C10_F04              |        | Ticket             | Contenido pendiente    |
+
+Las columnas van de C01 a C13, de izquierda a derecha; las filas, de F01 a F12, de arriba abajo. No se ha inventado el contenido de los cinco cajones pendientes. La planta, el teléfono, la película y el ticket no existen como objetos 3D en el `.blend`; solo están en la versión 2D V20 (historial de Git).
+
+### Navegación
+
+Arrastra para mirar. WASD o las flechas para caminar, con la cruceta en pantalla. La rueda o la pinza avanzan y retroceden. Una pulsación en el suelo lleva a ese punto. El desplazamiento se limita a un rectángulo de suelo libre delante de los archivadores. «Vista inicial» vuelve al encuadre de referencia y cierra todos los cajones. Escape cierra la ficha y después devuelve a la exploración.
+
+Si WebGL no arranca o se interrumpe, aparecen la imagen estática y las seis fichas nativas en la misma página. Sin JavaScript, las fichas se pueden leer y desplegar.
+
+## Rendimiento
+
+- GLB de 2,3 MB (geometría comprimida con meshopt, sin cuantizar) y texturas de luz de unos 0,4 MB en total.
+- 13 llamadas de dibujo y unos 32.000 triángulos. Los 156 cajones se dibujan en una malla por material. Cada vértice sabe a qué cajón pertenece y una pequeña textura guarda cuánto sobresale cada uno, de modo que se mueven por separado sin perder el agrupamiento.
+- Render bajo demanda: sin movimiento no se dibuja. Resolución de píxel limitada a 1,7.
+
+## Regenerar el modelo y la luz
+
+El `.blend` permanece fuera del repositorio. Desde la raíz, con Blender 4.3 o posterior (también vale el módulo `bpy` 5.2.3 de PyPI), sustituye las rutas por las de tu equipo:
 
 ```sh
-python3 -m http.server 8000 --bind 127.0.0.1
+blender --background --factory-startup --disable-autoexec /ruta/privada/Espacio_Portfolio.blend \
+  --python tools/bake_lightmaps.py -- /ruta/al/repositorio/EFEDEGAM 96 /ruta/temporal
+python3 tools/encode_lightmaps.py /ruta/temporal
+npx --yes gltfpack@0.24.0 -i assets/models/room.glb -o assets/models/room.glb -cc -noq -kn -km -kv
 ```
 
-Abre la raíz del servidor: la sala aparece directamente, sin pasar por un menú. Los módulos requieren HTTP; no abras el archivo con `file://`. Ctrl+C detiene el servidor.
+1. `bake_lightmaps.py` crea las UV de luz y hornea con Cycles (96 muestras: unos 45 min con 4 núcleos de CPU). Después renderiza la panorámica y escribe `room.glb` y `room.json` sin guardar el `.blend`. Las caras que nadie puede ver se encogen en el atlas. Los frentes se proyectan en alzado, una celda por cajón.
+2. `encode_lightmaps.py` (Python con numpy y Pillow) elimina el ruido residual sin mezclar texturas vacías y rellena los márgenes. Después escribe los WebP en sRGB con un ligero tramado.
+3. `gltfpack` comprime la geometría. `-kv` es imprescindible: conserva las UV de luz, que ningún material del GLB referencia.
 
-- Arrastra sobre la sala para orientar la mirada. No se activa captura del ratón ni pantalla completa automáticamente.
-- Enfoca el lienzo mediante clic o Tab y usa WASD o las flechas para caminar. La cruceta visible permite avanzar, retroceder y desplazarse lateralmente. Una pulsación en el suelo lleva a ese punto dentro de los límites de navegación. La rueda o la pinza táctil permiten avanzar y retroceder.
-- Pulsa el marcador «Proyectos 023», el propio cajón seleccionado en 3D o «Ir a proyectos» para acercarte. El arrastre se distingue de la pulsación.
-- Pulsa «Abrir cajón». Las seis carpetas físicas y la lista HTML abren las mismas fichas; la lista permite acceder por teclado. «Siguiente carpeta» recorre los proyectos.
-- Cierra la ficha con su botón o Escape. «Volver a explorar», el cierre del panel o Escape sin ficha abierta recuperan la posición anterior al acercamiento. «Vista inicial» vuelve al encuadre de referencia y cierra el cajón. Las fichas y todos los controles pertenecen a esta misma sala; no hay otro portfolio al que volver.
+`assets/scene-preview/room.jpg` es un render Cycles independiente del encuadre de referencia (Blender 4.3.2, 64 muestras, 1280 × 720). Sirve como imagen de respaldo y como referencia para la calibración.
 
-El desplazamiento se limita a un rectángulo de suelo libre delante de los archivadores; no es un sistema general de colisiones. La preferencia `prefers-reduced-motion` elimina los vuelos de cámara y la animación de apertura. Si WebGL no arranca o se interrumpe, aparece la imagen estática y las seis fichas nativas dentro de la misma página, junto a «Reintentar». Sin JavaScript, esas mismas fichas se pueden leer y desplegar. El contenido se sincroniza desde `scripts/projects.js` mediante `node tools/update_project_fallback.mjs`.
-
-## Recursos y exportación reproducible
-
-`assets/models/room.glb` ocupa 973.172 bytes. La exportación web elimina animaciones y drivers del origen, propiedades personalizadas, rutas de origen, cámaras y luces del GLB. La cámara de referencia se guarda por separado en JSON. La apertura del único cajón y las carpetas se controlan en el navegador; no se reproducen las animaciones originales de Blender.
-
-El `.blend` permanece fuera del repositorio; `.gitignore` excluye los archivos Blender y sus copias habituales. Con Blender 4.3.2 y una copia privada del archivo fuente, ejecuta desde la raíz del repositorio, sustituyendo ambas rutas por las de tu equipo:
-
-```sh
-blender --background --factory-startup --disable-autoexec /ruta/privada/sala.blend \
-  --python tools/export_room.py -- /ruta/al/repositorio/EFEDEGAM
-```
-
-`tools/export_room.py` escribe `assets/models/room.glb` y `assets/models/room.json`, sin guardar ni modificar el `.blend` de entrada. Requiere la cámara activa de referencia y los nombres de cajones esperados. No genera la imagen alternativa.
-
-La imagen `assets/scene-preview/room.jpg` se renderizó por separado en Blender 4.3.2, con Cycles CPU, 64 muestras y 1280 × 720. Su procedencia y SHA-256 están en `assets/scene-preview/SOURCE.json`. Es una imagen de respaldo, no una captura del renderizador interactivo.
-
-Three.js 0.180.0 está incluido en `vendor/three/` con licencia MIT, procedencia e integridad en `SOURCE.json`. Se preparó con scripts de instalación desactivados; la auditoría no indicó avisos conocidos en ese momento. Eso no garantiza seguridad. La ejecución de la web no requiere instalar paquetes, CDN, claves ni servicios de rastreo.
+Three.js 0.180.0 está incluido en `vendor/three/` con licencia MIT, procedencia e integridad en `SOURCE.json`. Incluye el descompresor meshopt de ese mismo paquete. No hay CDN, rastreo ni claves.
 
 ## Validación y límites
-
-Las pruebas requieren Python, Playwright para Python y Chromium, igual que las comprobaciones del portfolio descritas en [README.md](../README.md). Inician y cierran su propio servidor local:
 
 ```sh
 python3 tests/check_site.py
 python3 tests/check_space.py
 ```
 
-La suite 3D comprueba el encuadre exportado, recursos locales, agrupación de cajones repetidos, movimiento y límites, arrastre sin selección accidental, apertura y seis fichas, controles táctiles, alternativa sin WebGL, finalización de transiciones y cese del renderizado en reposo. Usa WebGL por software; no demuestra rendimiento en teléfonos reales. Las comprobaciones automatizadas tampoco sustituyen una revisión visual y de uso en dispositivos físicos.
-
-La iluminación y los materiales del navegador son una aproximación al aspecto de Blender. La imagen de respaldo usa otro renderizador y puede diferir. Quedan fuera de esta entrega la interacción con todos los cajones, las animaciones originales y la sustitución de las fichas de ejemplo. Ampliar la interacción al resto de cajones es trabajo futuro; la sala 3D ya es la entrada principal.
+La suite 3D comprueba: encuadre exportado, recursos locales, agrupación de cajones, movimiento y límites, arrastre sin selección accidental, entrada completa (empieza lejos y termina frente al archivo), salto de la entrada, apertura independiente de cajones, los seis cajones con nombre, fichas, tacto, alternativa sin WebGL y cese del renderizado en reposo. Usa WebGL por software: no demuestra el rendimiento en teléfonos ni sustituye una revisión en dispositivos reales.
 
 ## Referencia y privacidad
 
-La referencia de interacción elegida por el propietario fue https://3dhouse.schumacher.com/. Se consultó el 1 de noviembre de 2026: se observaron instrucciones de arrastre, zoom y selección, pero la escena permaneció cargando y no se verificaron todas sus interacciones. Esta referencia específica no sustituye las bibliotecas de confianza de [REFERENCIAS.md](../REFERENCIAS.md), ni autoriza copiar código o recursos.
+La referencia de interacción elegida por el propietario fue https://3dhouse.schumacher.com/ (consultada el 1 de noviembre de 2026). No autoriza a copiar código ni recursos.
 
-Antes de compartir, revisa los archivos exportados y sus metadatos para detectar datos personales o secretos; las exclusiones de Git no sustituyen esa revisión. La preparación local no autoriza enviar a GitHub ni publicar. Cualquier publicación necesita autorización explícita del propietario.
+Antes de compartir, revisa los archivos exportados y sus metadatos para detectar datos personales o secretos. El GLB se exporta sin `extras`, scripts ni rutas de origen. Cualquier publicación requiere autorización explícita del propietario.

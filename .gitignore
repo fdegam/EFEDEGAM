@@ -18,3 +18,9 @@ __pycache__/
 *.blend
 *.blend1
 *.blend2
+
+# Intermediate bake output (float lightmaps, panoramas); only the encoded
+# WebP files in assets/models/lightmaps/ are published.
+tools/.bake/
+*.exr
+*.npy
