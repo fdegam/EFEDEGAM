@@ -29,7 +29,7 @@ Diferencias conocidas: los tiradores, de unos 3 px en el atlas, quedan ligeramen
 1. **Espacio**: plano general desde la cámara de referencia, con un avance casi imperceptible.
 2. **Identidad**: aparece «EFEDEGAM · ARCHIVO PERSONAL» en verde tinta.
 3. **Movimiento**: aceleración fuerte (curva t^3,2); el rótulo sale despedido hacia la cámara.
-4. **Frenazo**: la cámara llega a máxima velocidad, se pasa unos 15 cm y retrocede con una oscilación amortiguada y un ligero cabeceo. La pared encaja el golpe: los cajones se desplazan 0,6–2 cm hacia fuera y vuelven a su sitio en onda desde el centro.
+4. **Frenazo**: la cámara llega a máxima velocidad, se pasa unos 15 cm y retrocede con una oscilación amortiguada y un ligero cabeceo. La pared encaja el golpe: cada cajón recibe un pequeño impulso, en onda desde el centro, sale como mucho unos 6 mm y vuelve amortiguado, sin rebotes secos.
 5. **Interacción**: la cámara queda a 3,9 m del archivo (4,4 m en móvil), con la pared completa entre techo y moqueta.
 
 «Saltar entrada», Escape, Intro, un clic o un arrastre terminan la secuencia al instante. Con `prefers-reduced-motion` no hay entrada: se muestra directamente el encuadre de referencia. Para revisar sin entrada se puede añadir `?sinintro` a la dirección.
@@ -37,6 +37,8 @@ Diferencias conocidas: los tiradores, de unos 3 px en el atlas, quedan ligeramen
 ### Cajones
 
 - **Todos los cajones se abren y se cierran** al pulsarlos. Se deslizan sobre su eje, sin atravesar el mueble.
+- Movimiento de guías de rodamientos (`stepDrawer` en `scripts/space/app.js`): una trayectoria sin tirones (velocidad y aceleración nulas en los extremos) que el cajón sigue con su inercia mediante un muelle amortiguado. Al abrir arranca suave, desliza a menos de 1 m/s y se asienta con unos 2 mm de juego (≈0,9 s). Al cerrar, la amortiguación es crítica, como un cierre suave: llega al marco a ~6 cm/s, sin golpe.
+- Cajón 023: 32 carpetas colgantes de cartón kraft (`scripts/space/folders.js`), según la foto de referencia de Drive › `Referencias`. Están muy juntas e inclinadas unos 17° hacia el fondo, con pestañas escalonadas, etiquetas blancas que asoman y algunos folios. Las seis de proyectos llevan su título y una marca de su color; al pasar el ratón por encima, la carpeta se levanta 2,8 cm. Las carpetas se balancean por inercia cuando el cajón arranca o frena. No sobresalen del cajón para no atravesar el estante superior al cerrarlo.
 - Seis cajones tienen nombre y etiqueta. Al pulsarlos, la cámara se acerca y aparece un panel. Su ubicación sigue la composición de V20 y se edita en `scripts/drawers.js`:
 
 | Cajón (columna_fila) | Código | Nombre             | Estado                 |
@@ -59,7 +61,7 @@ Si WebGL no arranca o se interrumpe, aparecen la imagen estática y las seis fic
 ## Rendimiento
 
 - GLB de 2,3 MB (geometría comprimida con meshopt, sin cuantizar) y texturas de luz de unos 0,4 MB en total.
-- 13 llamadas de dibujo y unos 32.000 triángulos. Los 156 cajones se dibujan en una malla por material. Cada vértice sabe a qué cajón pertenece y una pequeña textura guarda cuánto sobresale cada uno, de modo que se mueven por separado sin perder el agrupamiento.
+- 13 llamadas de dibujo (18 con el cajón 023 abierto: las 32 carpetas son instancias) y unos 32.000 triángulos. Los 156 cajones se dibujan en una malla por material. Cada vértice sabe a qué cajón pertenece y una pequeña textura guarda cuánto sobresale cada uno, de modo que se mueven por separado sin perder el agrupamiento.
 - Render bajo demanda: sin movimiento no se dibuja. Resolución de píxel limitada a 1,7.
 
 ## Regenerar el modelo y la luz

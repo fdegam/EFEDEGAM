@@ -5,6 +5,7 @@ import { MeshoptDecoder } from "../../vendor/three/addons/libs/meshopt_decoder.m
 import { RoomNavigation } from "./navigation.js";
 import { projects } from "../projects.js";
 import { specialDrawers } from "../drawers.js";
+import { buildFolders } from "./folders.js";
 
 const $ = (selector) => document.querySelector(selector);
 const viewport = $("#sceneViewport"),
@@ -25,7 +26,7 @@ const raycaster = new THREE.Raycaster(),
   pointer = new THREE.Vector2(),
   projected = new THREE.Vector3();
 const hotspot = $("#projectHotspot");
-const folderObjects = [];
+let folders = null; // kraft folders of drawer 023 (scripts/space/folders.js)
 
 /* ------------------------------------------------------------------ */
 /* Drawers: 156 independent drawers drawn as one mesh per material.     */
@@ -51,20 +52,78 @@ function setOffset(d, value) {
   offsetData[d.index] = value;
   offsetTexture.needsUpdate = true;
 }
-function animateDrawer(d, target, duration = 650, ease = easeOutCubic) {
+/*
+ * Drawers run on ball-bearing slides: a hand pulls them along a smooth
+ * path (`lead`, zero speed and acceleration at both ends) and the drawer,
+ * with its mass, follows it through a damped spring. It starts gently,
+ * glides, and settles at its stop with a few millimetres of give.
+ */
+// Opening settles with a few millimetres of give; closing is critically
+// damped, like a soft-close slide, so it never knocks on the frame.
+const SLIDE = {
+  open: 0.62,
+  close: 0.6,
+  omega: 17,
+  zetaOpen: 0.72,
+  zetaClose: 1,
+};
+const smootherstep = (t) => t * t * t * (t * (6 * t - 15) + 10);
+function animateDrawer(d, target) {
   d.target = target;
   if (reduced.matches) {
     setOffset(d, target);
-    d.motion = null;
-  } else
+    Object.assign(d, {
+      lead: target,
+      v: 0,
+      acc: 0,
+      motion: null,
+      active: false,
+    });
+  } else {
+    const share = Math.min(1, Math.abs(target - d.lead) / config.drawerTravel);
+    const base = target > d.lead ? SLIDE.open : SLIDE.close;
     d.motion = {
-      from: d.offset,
+      from: d.lead,
       to: target,
       start: performance.now(),
-      duration,
-      ease,
+      duration: base * (0.55 + 0.45 * share) * 1000,
     };
+    d.active = true;
+  }
   invalidate();
+}
+/** Advances one drawer; returns true while it still moves. */
+function stepDrawer(d, time, dt) {
+  if (d.motion) {
+    const t = Math.min(1, (time - d.motion.start) / d.motion.duration);
+    d.lead = THREE.MathUtils.lerp(d.motion.from, d.motion.to, smootherstep(t));
+    if (t === 1) d.motion = null;
+  }
+  const { omega } = SLIDE;
+  const zeta = d.target > 0.001 ? SLIDE.zetaOpen : SLIDE.zetaClose;
+  const max = config.drawerTravel + 0.004;
+  const steps = Math.max(1, Math.ceil(dt / (1 / 240)));
+  const h = dt / steps;
+  let x = d.offset,
+    v = d.v,
+    a = 0;
+  for (let i = 0; i < steps; i++) {
+    a = omega * omega * (d.lead - x) - 2 * zeta * omega * v;
+    v += a * h;
+    x += v * h;
+    // The frame and the slide stops: soft bumpers, not walls.
+    if (x < 0) [x, v] = [0, v < 0 ? -v * 0.2 : v];
+    if (x > max) [x, v] = [max, v > 0 ? -v * 0.2 : v];
+  }
+  d.v = v;
+  d.acc = a;
+  if (!d.motion && Math.abs(x - d.lead) < 2e-4 && Math.abs(v) < 2e-3) {
+    x = d.lead;
+    d.v = d.acc = 0;
+    d.active = false;
+  }
+  if (x !== d.offset) setOffset(d, x);
+  return d.active;
 }
 const isOpen = (d) => d.target > 0.001;
 function toggleDrawer(d, open = !isOpen(d)) {
@@ -73,7 +132,6 @@ function toggleDrawer(d, open = !isOpen(d)) {
 }
 
 /* ------------------------------------------------------------------ */
-const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 function announce(text) {
   status.textContent = text;
 }
@@ -228,11 +286,11 @@ function pick(clientX, clientY) {
     return true;
   });
   if (!hit) return null;
-  for (let object = hit.object; object; object = object.parent)
-    if (Number.isInteger(object.userData.projectIndex))
-      return isOpen(projectDrawer) && selected === projectDrawer
-        ? { kind: "folder", index: object.userData.projectIndex }
-        : { kind: "drawer", drawer: projectDrawer };
+  const folder = folders?.projectAt(hit);
+  if (folder !== null && folder !== undefined)
+    return folder >= 0 && isOpen(projectDrawer) && selected === projectDrawer
+      ? { kind: "folder", index: folder }
+      : { kind: "drawer", drawer: projectDrawer };
   const ids = hit.object.geometry?.attributes?.drawerId;
   if (ids && hit.face) {
     const d = drawers[Math.round(ids.getX(hit.face.a))];
@@ -278,6 +336,8 @@ function tap(clientX, clientY) {
 function hover(x, y) {
   if (intro) return;
   const hit = pick(x, y);
+  folders?.setHovered(hit?.kind === "folder" ? hit.index : -1);
+  invalidate();
   canvas.classList.toggle(
     "is-over-project",
     hit?.kind === "folder" || hit?.kind === "drawer",
@@ -310,6 +370,7 @@ function startIntro() {
   const from = initialPose();
   const creep = from.position.clone().add(new THREE.Vector3(0, 0.03, -0.32));
   intro = { start: performance.now(), from, creep, to: arrivalPose() };
+  drawers.forEach((d) => (d.jolted = false));
   document.body.classList.add("is-intro");
   $("#introTitle").hidden = false;
   $("#skipIntro").hidden = false;
@@ -323,7 +384,11 @@ function finishIntro() {
   intro = null;
   camera.position.copy(to.position);
   camera.quaternion.copy(to.quaternion);
-  drawers.forEach((d) => !isOpen(d) && d.offset && setOffset(d, 0));
+  drawers.forEach((d) => {
+    if (isOpen(d)) return;
+    setOffset(d, 0);
+    Object.assign(d, { lead: 0, v: 0, acc: 0, active: false });
+  });
   document.body.classList.remove(
     "is-intro",
     "intro-show-title",
@@ -375,16 +440,13 @@ function updateIntro(time) {
       0.006 * jolt * Math.sin(w * 1.6 * s),
     );
     camera.quaternion.copy(to.quaternion).multiply(shakeQ.setFromEuler(shake));
-    // The wall takes the impact: drawers jolt out and fall back, as a ripple.
+    // The wall takes the impact: a ripple of small, damped impulses. Each
+    // drawer slides out a centimetre or so and taps softly back on its frame.
     for (const d of drawers) {
-      if (isOpen(d)) continue;
-      const delay = d.ripple * 0.32;
-      const u = s - delay;
-      const v =
-        u > 0
-          ? d.jolt * Math.exp(-7 * u) * Math.abs(Math.sin(17 * u + d.phase))
-          : 0;
-      if (Math.abs(v - d.offset) > 1e-5) setOffset(d, v);
+      if (isOpen(d) || d.jolted || s < d.ripple * 0.32) continue;
+      d.jolted = true;
+      d.v += d.jolt * 17;
+      d.active = true;
     }
   } else return finishIntro();
 }
@@ -416,17 +478,13 @@ function renderFrame(time) {
     if (t === 1) journey = null;
   }
   let drawerMoving = false;
-  for (const d of drawers) {
-    if (!d.motion) continue;
-    const t = Math.min(1, (time - d.motion.start) / d.motion.duration);
-    setOffset(
-      d,
-      THREE.MathUtils.lerp(d.motion.from, d.motion.to, d.motion.ease(t)),
-    );
-    if (t === 1) d.motion = null;
-    else drawerMoving = true;
+  for (const d of drawers)
+    if (d.active && stepDrawer(d, time, dt)) drawerMoving = true;
+  if (folders) {
+    folders.group.visible = projectDrawer.offset > 0.01;
+    if (folders.group.visible && folders.update(dt, projectDrawer.acc))
+      drawerMoving = true;
   }
-  folderObjects.forEach((card) => (card.visible = projectDrawer.offset > 0.05));
   room.updateMatrixWorld(true);
   camera.updateMatrixWorld();
   updateHotspots();
@@ -451,35 +509,12 @@ function resize() {
   camera.updateProjectionMatrix();
   invalidate();
 }
-function addFolders() {
-  const paper = new THREE.Color("#c9bca2");
-  const lit = (color) =>
-    new THREE.MeshLambertMaterial({
-      color,
-      emissive: color,
-      emissiveIntensity: 0.55,
-    });
-  projects.forEach((project, i) => {
-    const height = 0.13 + i * 0.008;
-    const folder = new THREE.Group();
-    const board = new THREE.Mesh(
-      new THREE.BoxGeometry(0.4, height, 0.004),
-      lit(new THREE.Color(project.color).lerp(paper, 0.65)),
-    );
-    board.position.y = height / 2;
-    const tab = new THREE.Mesh(
-      new THREE.BoxGeometry(0.1, 0.022, 0.004),
-      lit(new THREE.Color(project.color)),
-    );
-    tab.position.set(-0.13 + (i % 3) * 0.13, height + 0.011, 0);
-    folder.add(board, tab);
-    folder.position.set(0, -0.095, -0.07 - i * 0.045);
-    folder.rotation.x = -0.12;
-    folder.visible = false;
-    folder.userData.projectIndex = i;
-    projectDrawer.node.add(folder);
-    folderObjects.push(folder);
-  });
+async function addFolders() {
+  // Labels are drawn with the page's own typeface.
+  await document.fonts?.load('500 30px "DM Mono"').catch(() => {});
+  folders = buildFolders(projects);
+  folders.group.visible = false;
+  projectDrawer.node.add(folders.group);
 }
 function addTags() {
   for (const d of drawers) {
@@ -781,18 +816,21 @@ async function start() {
         closedZ: d.node.position.z,
         offset: 0,
         target: 0,
+        lead: 0,
+        v: 0,
+        acc: 0,
+        active: false,
         motion: null,
         special: specials.get(d.node.name) ?? null,
         ripple: Math.hypot(c - 7, (f - 6.5) * 1.6) / 9,
         jolt: 0.006 + 0.014 * Math.abs(Math.sin(index * 12.9898) * 0.5 + 0.5),
-        phase: (index * 2.39996) % Math.PI,
       });
       drawerById.set(d.id, d);
     });
     projectDrawer = drawerById.get(config.projectDrawer.slice(6));
     if (!projectDrawer) throw new Error("Project drawer unavailable");
     batchDrawers(lightmaps.archive);
-    addFolders();
+    await addFolders();
     addTags();
     navigation = new RoomNavigation(camera, canvas, config.walkBounds, {
       onChange: invalidate,
@@ -963,10 +1001,15 @@ reduced.addEventListener("change", () => {
       journey = null;
     }
     drawers.forEach((d) => {
-      if (d.motion) {
-        setOffset(d, d.motion.to);
-        d.motion = null;
-      }
+      if (!d.active) return;
+      setOffset(d, d.target);
+      Object.assign(d, {
+        lead: d.target,
+        v: 0,
+        acc: 0,
+        motion: null,
+        active: false,
+      });
     });
   }
   invalidate();

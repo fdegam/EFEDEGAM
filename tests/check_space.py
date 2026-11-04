@@ -61,7 +61,9 @@ class SpaceChecks(unittest.TestCase):
         return self.page.evaluate("async () => (await import('./scripts/space/app.js')).getRoomState()")
 
     def wait_state(self, expression):
-        deadline = time.monotonic() + 20
+        # Software WebGL draws about one frame per second at this size; the
+        # drawer and its folders need ~20 frames to settle.
+        deadline = time.monotonic() + 45
         while time.monotonic() < deadline:
             result = self.page.evaluate(
                 "async () => { const s=(await import('./scripts/space/app.js')).getRoomState(); return " + expression + "; }"
@@ -200,8 +202,8 @@ class SpaceChecks(unittest.TestCase):
     def test_skip_entrance(self):
         self.page.emulate_media(reduced_motion='no-preference')
         self.page.goto(self.url + '/', wait_until='networkidle')
-        expect(self.page.locator('#skipIntro')).to_be_visible(timeout=45000)
-        self.page.locator('#skipIntro').click()
+        # Software WebGL is slow: press the button as soon as it appears.
+        self.page.wait_for_function("() => { const b = document.querySelector('#skipIntro'); if (b && !b.hidden) { b.click(); return true; } return false; }", polling=20, timeout=45000)
         state = self.state()
         self.assertFalse(state['intro'])
         self.assertAlmostEqual(state['camera']['position'][2], 3.9, places=4)
