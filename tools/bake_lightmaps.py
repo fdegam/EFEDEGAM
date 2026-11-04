@@ -349,11 +349,13 @@ config = {
         'archive': {'file': 'lightmaps/archive.webp', 'intensity': intensity['archive'], 'meshes': ['Archive_Structure', 'GEOMETRIA_*']},
     },
     'environment': {'file': 'lightmaps/env.webp', 'intensity': env_scale, 'use': 'specular and sheen only'},
-    # Calibrated in the browser against the Cycles render of CAM_01_Referencia:
-    # Cycles' microfiber sheen returns far more light than three.js' sheen,
-    # so the carpet is matched by eye-level measurements of the floor.
+    # Calibrated in the browser against the Cycles render of CAM_01_Referencia,
+    # with the owner's velvet photo as carpet colour (tools/encode_carpet.py).
+    # The tint reproduces V20's cooler, desaturated treatment of that photo.
     'exposure': 1.3,
-    'materialTuning': {'Moqueta_verde_aterciopelada': {'sheenColorScale': 2, 'specularIntensityScale': 3, 'lightMapScale': 4},
+    'carpet': {'material': 'Moqueta_verde_aterciopelada', 'file': 'textures/moqueta.webp', 'repeatMetres': 0.9,
+               'source': 'Owner photo (Drive › Recursos), same as V20 carpet; tools/encode_carpet.py'},
+    'materialTuning': {'Moqueta_verde_aterciopelada': {'sheenColorScale': 1, 'specularIntensityScale': 1.5, 'lightMapScale': 0.128, 'tint': [0.76, 1, 1.65]},
                        # 8 mm shadow gaps between wall panels: finer than a lightmap texel.
                        'Juntas_sombra': {'emissive': [0.12, 0.12, 0.12]}},
     'bake': {'renderer': f'Blender {bpy.app.version_string}, Cycles CPU', 'samples': samples, 'pass': 'Diffuse direct + indirect, no colour', 'toneMapping': 'AgX'},

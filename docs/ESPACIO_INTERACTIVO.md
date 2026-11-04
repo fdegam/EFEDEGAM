@@ -17,10 +17,10 @@ La iluminación no se imita con focos genéricos de Three.js. Se calcula en Blen
 Calibración frente al render de Cycles del encuadre de referencia (`assets/scene-preview/room.jpg`), guardada en `assets/models/room.json`:
 
 - `exposure: 1.3`.
-- Moqueta: en el `.blend` su color base es casi negro y su verde procede del _sheen_ de microfibra de Cycles 4.x, que devuelve mucha más luz que el _sheen_ de Three.js. Se ajusta con `sheenColorScale 2`, `specularIntensityScale 3` y `lightMapScale 4`, medidos fila a fila sobre el suelo. Con esos valores, el suelo queda a pocos niveles de Cycles.
+- Moqueta: el color es la foto de terciopelo verde del propietario (Google Drive › `Recursos`, la misma que usaba V20), preparada con `tools/encode_carpet.py`: recorte, eliminación de su propia iluminación, repetición sin costuras y repetida cada 0,9 m. El tinte frío de V20 y el brillo se calibraron fila a fila frente al render Cycles: `tint [0.76, 1, 1.65]`, `lightMapScale 0.128`, `specularIntensityScale 1.5`. La textura de 512 px del `.blend` era casi negra (su verde lo ponía el _sheen_ de Cycles); la luz horneada no depende de ese color, así que no hubo que volver a hornear.
 - `Juntas_sombra` (`emissive 0.12`): las rendijas de 8 mm entre paneles de pared son más finas que un píxel de la textura de luz.
 
-Diferencias conocidas: la moqueta tiene menos grano que en Cycles, que además incluye ruido de muestreo. Los tiradores, de unos 3 px en el atlas, quedan ligeramente más suaves.
+Diferencias conocidas: los tiradores, de unos 3 px en el atlas, quedan ligeramente más suaves que en Cycles.
 
 ## Experiencia
 
@@ -70,6 +70,7 @@ El `.blend` permanece fuera del repositorio. Desde la raíz, con Blender 4.3 o p
 blender --background --factory-startup --disable-autoexec /ruta/privada/Espacio_Portfolio.blend \
   --python tools/bake_lightmaps.py -- /ruta/al/repositorio/EFEDEGAM 96 /ruta/temporal
 python3 tools/encode_lightmaps.py /ruta/temporal
+python3 tools/encode_carpet.py /ruta/a/la/foto_de_moqueta.jpg
 npx --yes gltfpack@0.24.0 -i assets/models/room.glb -o assets/models/room.glb -cc -noq -kn -km -kv
 ```
 

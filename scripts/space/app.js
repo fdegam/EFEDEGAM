@@ -599,11 +599,49 @@ function withLightmap(material, lightmap, cache) {
       m.lightMapIntensity *= tune.lightMapScale ?? 1;
       // Faces the lightmap cannot resolve (8 mm shadow gaps) get a floor.
       if (tune.emissive) m.emissive.setRGB(...tune.emissive);
+      if (tune.tint) m.color.setRGB(...tune.tint);
     }
     patchReflections(m);
     cache.set(key, m);
   }
   return cache.get(key);
+}
+/**
+ * The owner's velvet photo (Drive › Recursos, also V20's carpet) replaces the
+ * near-black procedural texture of the .blend. It is sized in metres: the
+ * scale comes from the floor's own UVs, so it does not depend on the export.
+ */
+async function applyCarpet() {
+  const info = config.carpet;
+  if (!info) return;
+  let floor = null;
+  room.traverse((o) => {
+    if (o.isMesh && o.material.name === info.material) floor = o;
+  });
+  if (!floor) return;
+  const texture = await new THREE.TextureLoader().loadAsync(
+    `assets/models/${info.file}`,
+  );
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+  const { position, normal, uv } = floor.geometry.attributes;
+  let x0 = Infinity,
+    x1 = -Infinity,
+    u0 = Infinity,
+    u1 = -Infinity;
+  for (let i = 0; i < position.count; i++) {
+    if (normal.getY(i) < 0.9) continue; // the walkable top face
+    x0 = Math.min(x0, position.getX(i));
+    x1 = Math.max(x1, position.getX(i));
+    u0 = Math.min(u0, uv.getX(i));
+    u1 = Math.max(u1, uv.getX(i));
+  }
+  const uvPerMetre = Math.abs(u1 - u0) / Math.max(1e-6, x1 - x0);
+  texture.repeat.setScalar(1 / (uvPerMetre * info.repeatMetres));
+  const m = floor.material;
+  m.map = texture; // its colour is tinted by materialTuning (room.json)
+  m.needsUpdate = true;
 }
 function batchDrawers(lightmap) {
   const byMaterial = new Map();
@@ -727,6 +765,7 @@ async function start() {
           cache,
         );
     });
+    await applyCarpet();
     const specials = new Map(specialDrawers.map((s) => [`CAJON_${s.id}`, s]));
     room.traverse((object) => {
       if (!object.name.startsWith("CAJON_")) return;

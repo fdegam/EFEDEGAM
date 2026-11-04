@@ -107,11 +107,22 @@
     "use": "specular and sheen only"
   },
   "exposure": 1.3,
+  "carpet": {
+    "material": "Moqueta_verde_aterciopelada",
+    "file": "textures/moqueta.webp",
+    "repeatMetres": 0.9,
+    "source": "Owner photo (Drive \u203a Recursos), same as V20 carpet; tools/encode_carpet.py"
+  },
   "materialTuning": {
     "Moqueta_verde_aterciopelada": {
-      "sheenColorScale": 2,
-      "specularIntensityScale": 3,
-      "lightMapScale": 4
+      "sheenColorScale": 1,
+      "specularIntensityScale": 1.5,
+      "lightMapScale": 0.128,
+      "tint": [
+        0.76,
+        1,
+        1.65
+      ]
     },
     "Juntas_sombra": {
       "emissive": [
