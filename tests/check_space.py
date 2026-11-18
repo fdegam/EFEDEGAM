@@ -79,7 +79,14 @@ class SpaceChecks(unittest.TestCase):
         current = self.state()
         for a, b in zip(current['camera']['position'], expected['position']):
             self.assertAlmostEqual(a, b, places=4)
-        expect(self.page.locator('#projectHotspot')).to_be_visible()
+        # Named drawers carry stickers and name cards in 3D; the HTML shortcut
+        # stays for the keyboard and appears only when focused.
+        self.assertEqual(current['labels'], 6)
+        expect(self.page.locator('#projectHotspot')).to_have_css('opacity', '0')
+        self.page.locator('#projectHotspot').focus()
+        self.page.keyboard.press('Tab')
+        self.page.keyboard.press('Shift+Tab')
+        expect(self.page.locator('#projectHotspot')).to_have_css('opacity', '1')
         self.assertLess(current['render']['calls'], 50, 'Repeated drawers should be instanced')
         self.assertGreater(current['render']['triangles'], 10000, 'The actual model must render')
         self.assertFalse(self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
@@ -116,7 +123,8 @@ class SpaceChecks(unittest.TestCase):
     def test_focus_open_projects_and_return(self):
         self.load()
         before = self.state()['camera']
-        self.page.locator('#projectHotspot').click()
+        self.page.locator('#projectHotspot').focus()
+        self.page.keyboard.press('Enter')
         expect(self.page.locator('#toggleDrawer')).to_be_focused()
         closed = self.state()
         self.assertTrue(closed['selected'])
@@ -242,7 +250,8 @@ class SpaceChecks(unittest.TestCase):
         names = [t.lower() for t in tags.all_inner_texts()]
         for name in ['el vacío', 'planta pixelada', 'película analógica', 'teléfono', 'ticket']:
             self.assertTrue(any(name in t for t in names), name)
-        self.page.locator('.drawer-tag', has_text='EL VACÍO').click()
+        self.page.locator('.drawer-tag', has_text='EL VACÍO').focus()
+        self.page.keyboard.press('Enter')
         self.assertEqual(self.state()['selected'], 'C11_F05')
         expect(self.page.locator('#drawerTitle')).to_have_text('El vacío')
         expect(self.page.locator('#drawerCode')).to_have_text('CAJÓN 099')

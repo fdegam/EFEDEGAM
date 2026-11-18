@@ -17,7 +17,7 @@ const T = {
   flicker: 380,
   fade: [3250, 3800],
 };
-const GLOW = new THREE.Color("#cfe9dc");
+const GLOW = new THREE.Color("#ffa516"); // warm amber yellow (AgX desaturates brights)
 const FULL = 1e4; // radius once built: no fragment is ever discarded
 
 const U = {
@@ -25,7 +25,8 @@ const U = {
   uRevealRadius: { value: FULL },
   uRevealBand: { value: 0.12 },
   uRevealNoise: { value: 0.22 },
-  uRevealGlow: { value: GLOW.clone().multiplyScalar(1.1) },
+  // Surfaces only get a faint warm hint: the light runs along the edges.
+  uRevealGlow: { value: GLOW.clone().multiplyScalar(0.18) },
   uRevealPower: { value: 1 },
   uLineOpacity: { value: 0 },
   uLineLead: { value: 0.9 },
@@ -111,6 +112,7 @@ function linesMaterial() {
     transparent: true,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
+    toneMapped: false, // keep the pulse a saturated warm yellow
   });
   m.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, U);
@@ -129,11 +131,13 @@ function linesMaterial() {
         "#include <opaque_fragment>",
         `float rd = revealDistance();
         float ahead = rd - uRevealRadius;
-        // Faint blueprint everywhere, bright just ahead of the wave, gone
-        // once the real surface stands behind it.
-        float near = 1.0 - smoothstep(0.0, uLineLead, abs(ahead));
-        float behind = smoothstep(0.0, 0.9, -ahead);
-        diffuseColor.a *= uLineOpacity * (0.1 + 0.55 * near) * (1.0 - 0.85 * behind);
+        // The light runs along the edges: a narrow pulse at the wave front,
+        // a barely visible blueprint ahead of it, a dim trace left behind.
+        float pulse = exp(-pow((ahead - 0.08) / 0.22, 2.0));
+        float blueprint = ahead > 0.0 ? 0.05 * (1.0 - smoothstep(0.0, 6.0, ahead)) + 0.02 : 0.0;
+        float trace = ahead <= 0.0 ? 0.06 * (1.0 - smoothstep(0.0, 1.2, -ahead)) + 0.02 : 0.0;
+        diffuseColor.rgb *= 1.0 + 2.2 * pulse;
+        diffuseColor.a *= uLineOpacity * (blueprint + trace + pulse);
         #include <opaque_fragment>`,
       );
   };

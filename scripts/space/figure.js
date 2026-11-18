@@ -278,9 +278,9 @@ export function createFigure(position, source = humanPoints()) {
     uAssemble: { value: 1 },
     uOpacity: { value: 1 },
     uLuminous: { value: 0 },
-    uRayO: { value: new THREE.Vector3(0, -100, 0) },
-    uRayD: { value: new THREE.Vector3(0, 1, 0) },
-    uHover: { value: 0 },
+    uFlowPos: { value: new THREE.Vector3(0, -100, 0) },
+    uFlow: { value: new THREE.Vector3() },
+    uStir: { value: 0 },
     uCam: { value: new THREE.Vector3() },
     uScale: { value: 600 },
     uLight: { value: LIGHT },
@@ -292,8 +292,8 @@ export function createFigure(position, source = humanPoints()) {
     blending: THREE.AdditiveBlending, // light adds to the room: it glows
     vertexShader: /* glsl */ `
       attribute float aSeed, aLayer;
-      uniform float uTime, uAngle, uAssemble, uOpacity, uHover, uScale;
-      uniform vec3 uRayO, uRayD, uCam;
+      uniform float uTime, uAngle, uAssemble, uOpacity, uStir, uScale;
+      uniform vec3 uFlowPos, uFlow, uCam;
       varying float vAlpha, vGlow, vLayer;
       void main() {
         vec3 p = position;
@@ -309,12 +309,20 @@ export function createFigure(position, source = humanPoints()) {
         vec3 w = (modelMatrix * vec4(p, 1.0)).xyz;
         // A living surface: a breath of motion per point.
         w += 0.0035 * vec3(sin(uTime * 1.7 + aSeed * 40.0), sin(uTime * 1.3 + aSeed * 71.0), cos(uTime * 1.5 + aSeed * 13.0));
-        // The pointer pushes the dust aside.
-        vec3 toP = w - uRayO;
-        vec3 off = w - (uRayO + uRayD * max(dot(toP, uRayD), 0.0));
-        float d = length(off);
-        float f = uHover * pow(clamp(1.0 - d / 0.3, 0.0, 1.0), 2.0);
-        w += off / max(d, 1e-4) * f * 0.16;
+        // The pointer stirs the points like smoke: they are carried along
+        // its motion, curl around it and drift, then settle back. Nothing
+        // is pushed away radially, so no hole opens.
+        vec3 rel = w - uFlowPos;
+        float fall = exp(-dot(rel, rel) / (0.34 * 0.34));
+        vec3 turb = vec3(
+          sin(w.y * 7.0 + uTime * 1.3 + aSeed * 6.0),
+          sin(w.z * 6.0 + uTime * 1.1 + aSeed * 4.0),
+          sin(w.x * 7.0 + uTime * 1.7 + aSeed * 5.0));
+        vec3 axis = normalize(uFlow + vec3(1e-4, 0.0, 0.0));
+        vec3 swirl = cross(axis, rel);
+        float f = fall * uStir;
+        w += fall * uFlow * (0.16 + aSeed * 0.16)
+          + f * (turb * 0.045 + swirl * 0.9);
         // Walking through: the points part around the camera.
         vec3 fc = w - uCam;
         float dc = length(fc);
@@ -381,19 +389,30 @@ export function createFigure(position, source = humanPoints()) {
     position.clone().add(new THREE.Vector3(0, NAVEL, 0)),
     1.35,
   );
-  let hover = 0,
-    hoverGoal = 0,
-    time = 0;
+  // Pointer as a stirring stick: where it crosses the figure's axis.
+  let time = 0,
+    pointerAt = null;
+  const last = new THREE.Vector3(),
+    velocity = new THREE.Vector3(),
+    axis = position.clone();
+  let hasLast = false;
   return {
     object,
     shadow,
     bounds,
     setPointer(ray) {
-      hoverGoal = ray ? 1 : 0;
-      if (ray) {
-        uniforms.uRayO.value.copy(ray.origin);
-        uniforms.uRayD.value.copy(ray.direction);
+      if (!ray) {
+        pointerAt = null;
+        hasLast = false;
+        return;
       }
+      // Point of the ray nearest the figure's vertical axis.
+      const o = ray.origin,
+        d = ray.direction;
+      const dxz = d.x * d.x + d.z * d.z;
+      const t =
+        dxz > 1e-6 ? ((axis.x - o.x) * d.x + (axis.z - o.z) * d.z) / dxz : 0;
+      pointerAt = o.clone().addScaledVector(d, Math.max(0, t));
     },
     /** Advances the figure; returns true while it needs more frames. */
     update(
@@ -408,7 +427,24 @@ export function createFigure(position, source = humanPoints()) {
       },
     ) {
       time += dt;
-      hover += (hoverGoal - hover) * Math.min(1, dt * 6);
+      const flow = uniforms.uFlow.value;
+      if (pointerAt && hasLast && dt > 0) {
+        velocity
+          .subVectors(pointerAt, last)
+          .divideScalar(dt)
+          .clampLength(0, 1.6);
+      } else velocity.set(0, 0, 0);
+      if (pointerAt) {
+        uniforms.uFlowPos.value.lerp(pointerAt, 1 - Math.exp(-dt * 12));
+        last.copy(pointerAt);
+        hasLast = true;
+      }
+      // The smoke follows the stick, then lingers and slowly settles.
+      flow.lerp(velocity, 1 - Math.exp(-dt * 2.6));
+      uniforms.uStir.value = Math.max(
+        uniforms.uStir.value * Math.exp(-dt * 1.3),
+        Math.min(1, velocity.length() * 0.9),
+      );
       uniforms.uTime.value = reduced ? 0 : time;
       if (!reduced) uniforms.uAngle.value += dt * 0.22; // a full turn in ~29 s
       uniforms.uAssemble.value = assemble;
@@ -419,12 +455,11 @@ export function createFigure(position, source = humanPoints()) {
         opacity *
         Math.min(1, Math.max(0, assemble * 1.4 - 0.4)) *
         (1 - luminous * 0.8);
-      uniforms.uHover.value = hover;
       uniforms.uCam.value.copy(camera.position);
       uniforms.uScale.value =
         viewportHeight /
         (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));
-      return !reduced || Math.abs(hover - hoverGoal) > 1e-3;
+      return !reduced || uniforms.uStir.value > 2e-3 || flow.length() > 1e-3;
     },
   };
 }

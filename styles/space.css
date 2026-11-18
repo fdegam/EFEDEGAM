@@ -197,6 +197,13 @@ button:active:not(:disabled) {
   font: 300 clamp(44px, 8vw, 96px) / 1 var(--mono);
   letter-spacing: -0.04em;
 }
+/* While loading, only the loader speaks: the room's controls and help
+   appear once there is a room to explore. */
+body.is-loading .space-bottom,
+body.is-loading .walk-controls,
+body.is-loading .space-header .space-edition {
+  visibility: hidden;
+}
 /* The HTML wordmark stays for assistive technology; the visible one is
    written on the archive, behind the figure. */
 .intro-title {
@@ -789,4 +796,13 @@ body.is-intro .space-header .space-edition {
   .intro-sub {
     transition: none;
   }
+}
+
+/* The named drawers carry their own sticker and name card in 3D. These
+   buttons stay for keyboard and screen-reader users: invisible until they
+   receive keyboard focus. */
+.project-hotspot:not(:focus-visible),
+.drawer-tag:not(:focus-visible) {
+  opacity: 0;
+  pointer-events: none;
 }

@@ -6,3 +6,6 @@
 .js-only {
   display: none !important;
 }
+body.is-loading .space-header .space-edition {
+  visibility: visible;
+}

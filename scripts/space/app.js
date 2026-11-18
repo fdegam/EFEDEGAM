@@ -14,6 +14,7 @@ import {
   revealState,
 } from "./reveal.js";
 import { createFigure } from "./figure.js";
+import { addDrawerLabels } from "./labels.js";
 
 const $ = (selector) => document.querySelector(selector);
 const viewport = $("#sceneViewport"),
@@ -36,6 +37,7 @@ const raycaster = new THREE.Raycaster(),
 const hotspot = $("#projectHotspot");
 let folders = null; // kraft folders of drawer 023 (scripts/space/folders.js)
 let figure = null; // a person made of light points, at the centre (scripts/space/figure.js)
+let labelCount = 0; // stickers and name cards on the named drawers
 let wallTitle = null; // EFEDEGAM written across the archive, behind the figure
 let reveal = null; // the archive building itself (scripts/space/reveal.js)
 const FIGURE_AT = new THREE.Vector3(0, 0, 3.35); // centre of the room
@@ -298,6 +300,12 @@ function pick(clientX, clientY) {
     return true;
   });
   if (!hit) return null;
+  // A sticker or name card belongs to its drawer.
+  for (let o = hit.object; o; o = o.parent)
+    if (o.name.startsWith("Label_")) {
+      const d = drawerById.get(o.name.slice(6));
+      if (d) return { kind: "drawer", drawer: d };
+    }
   const folder = folders?.projectAt(hit);
   if (folder !== null && folder !== undefined)
     return folder >= 0 && isOpen(projectDrawer) && selected === projectDrawer
@@ -654,6 +662,7 @@ function addTags() {
   }
 }
 function showError(message) {
+  document.body.classList.remove("is-loading");
   failed = true;
   ready = false;
   intro = null;
@@ -687,7 +696,12 @@ function showError(message) {
 /** Technical loader: one percentage and a hairline bar. */
 let shownProgress = 0;
 function setProgress(share) {
-  const value = Math.max(shownProgress, Math.round(share * 100));
+  // Servers may announce the compressed size while counting decompressed
+  // bytes: never show more than 100 %.
+  const value = Math.max(
+    shownProgress,
+    Math.round(Math.min(1, Math.max(0, share)) * 100),
+  );
   shownProgress = value;
   $("#loadingText").textContent = `${String(value).padStart(2, "0")} %`;
   $("#loadingBar").style.transform = `scaleX(${value / 100})`;
@@ -903,7 +917,8 @@ async function start() {
       new GLTFLoader()
         .setMeshoptDecoder(MeshoptDecoder)
         .loadAsync("assets/models/room.glb", (event) => {
-          if (event.total) setProgress((event.loaded / event.total) * 0.9);
+          if (event.total)
+            setProgress(Math.min(1, event.loaded / event.total) * 0.9);
         }),
       loadLightmaps(),
     ]);
@@ -962,6 +977,7 @@ async function start() {
     batchDrawers(lightmaps.archive);
     await addFolders();
     addTags();
+    labelCount = addDrawerLabels(drawers);
     figure = createFigure(FIGURE_AT);
     scene.add(figure.object, figure.shadow);
     wallTitle = createWallTitle();
@@ -997,6 +1013,7 @@ async function start() {
     failed = false;
     renderFrame(performance.now());
     viewport.classList.add("is-ready");
+    document.body.classList.remove("is-loading");
     viewport.setAttribute("aria-busy", "false");
     $("#loadingState").hidden = true;
     $("#scenePoster").hidden = true;
@@ -1181,6 +1198,7 @@ export function getRoomState() {
     ready,
     intro: Boolean(intro),
     reveal: revealState(),
+    labels: labelCount,
     building: Boolean(reveal && !reveal.finished),
     figure: figure
       ? {
