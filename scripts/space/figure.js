@@ -292,7 +292,7 @@ export function createFigure(position, source = humanPoints()) {
     blending: THREE.AdditiveBlending, // light adds to the room: it glows
     vertexShader: /* glsl */ `
       attribute float aSeed, aLayer;
-      uniform float uTime, uAngle, uAssemble, uOpacity, uStir, uScale;
+      uniform float uTime, uAngle, uAssemble, uOpacity, uStir, uScale, uLuminous;
       uniform vec3 uFlowPos, uFlow, uCam;
       varying float vAlpha, vGlow, vLayer;
       void main() {
@@ -330,13 +330,14 @@ export function createFigure(position, source = humanPoints()) {
         w += fc / max(dc, 1e-4) * g * 0.55;
         vec4 mv = viewMatrix * vec4(w, 1.0);
         gl_Position = projectionMatrix * mv;
-        float layer = aLayer < 0.5 ? 0.75 : 0.07; // body sparks, faint halo
+        // Body sparks and a faint halo; in the dark the halo grows strong.
+        float layer = aLayer < 0.5 ? 0.75 * (1.0 + 0.6 * uLuminous) : mix(0.07, 0.42, uLuminous);
         // Dust only exists while it gathers: nothing floats before.
         vAlpha = uOpacity * clamp(uAssemble * 3.0, 0.0, 1.0) * layer * smoothstep(0.08, 0.4, dc) * (0.75 + 0.25 * sin(uTime * 2.0 + aSeed * 60.0));
         vGlow = f + g;
         vLayer = aLayer;
-        float size = aLayer < 0.5 ? 0.0055 + aSeed * 0.0055 : 0.05 + aSeed * 0.07;
-        gl_PointSize = clamp(size * uScale / -mv.z, 1.0, aLayer < 0.5 ? 8.0 : 64.0);
+        float size = aLayer < 0.5 ? 0.0055 + aSeed * 0.0055 : (0.05 + aSeed * 0.07) * (1.0 + 0.55 * uLuminous);
+        gl_PointSize = clamp(size * uScale / -mv.z, 1.0, aLayer < 0.5 ? 8.0 : 96.0);
       }`,
     fragmentShader: /* glsl */ `
       uniform vec3 uLight;
@@ -379,6 +380,31 @@ export function createFigure(position, source = humanPoints()) {
   shadow.position.copy(position).setY(0.004);
   shadow.renderOrder = 1;
   shadow.name = "Point_Figure_Shadow";
+  // Lights out: the figure lights the carpet around its feet.
+  const pc = document.createElement("canvas");
+  pc.width = pc.height = 128;
+  const pctx = pc.getContext("2d");
+  const grad = pctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+  grad.addColorStop(0, "rgba(255,255,255,1)");
+  grad.addColorStop(0.35, "rgba(255,255,255,0.45)");
+  grad.addColorStop(1, "rgba(255,255,255,0)");
+  pctx.fillStyle = grad;
+  pctx.fillRect(0, 0, 128, 128);
+  const pool = new THREE.Mesh(
+    new THREE.PlaneGeometry(2.6, 2.6).rotateX(-Math.PI / 2),
+    new THREE.MeshBasicMaterial({
+      map: new THREE.CanvasTexture(pc),
+      color: LIGHT,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      toneMapped: false,
+    }),
+  );
+  pool.position.copy(position).setY(0.005);
+  pool.name = "Point_Figure_Glow";
+  pool.renderOrder = 1;
   const object = new THREE.Points(geo, material);
   object.name = "Point_Figure";
   object.position.copy(position);
@@ -399,6 +425,7 @@ export function createFigure(position, source = humanPoints()) {
   return {
     object,
     shadow,
+    pool,
     bounds,
     setPointer(ray) {
       if (!ray) {
@@ -449,6 +476,8 @@ export function createFigure(position, source = humanPoints()) {
       if (!reduced) uniforms.uAngle.value += dt * 0.22; // a full turn in ~29 s
       uniforms.uAssemble.value = assemble;
       uniforms.uLuminous.value = luminous;
+      pool.material.opacity = 0.22 * luminous * Math.min(1, assemble);
+      pool.visible = pool.material.opacity > 0.002;
       uniforms.uOpacity.value = opacity;
       shadow.rotation.y = uniforms.uAngle.value; // it turns with the figure
       shadow.material.opacity =

@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { applyReveal } from "./reveal.js";
 
 /**
  * Kraft hanging folders for drawer 023, after the owner's reference photo
@@ -124,13 +125,18 @@ function leafWithTab(tabCentre) {
 
 export function buildFolders(projects) {
   const kraft = kraftTexture();
-  const paper = (color, map = null) =>
-    new THREE.MeshStandardMaterial({
+  // Paper follows the room's light: it darkens when the lights go out.
+  const paper = (color, map = null) => {
+    const m = new THREE.MeshStandardMaterial({
       color,
       map,
       roughness: 0.9,
       side: THREE.DoubleSide,
     });
+    m.onBeforeCompile = (shader) => applyReveal(shader);
+    m.customProgramCacheKey = () => "efedegam-folder-paper";
+    return m;
+  };
 
   // Folder layout: deterministic, packed front to back.
   const step = (INNER.front - INNER.back) / (COUNT - 1);
@@ -229,6 +235,7 @@ export function buildFolders(projects) {
         "#include <uv_vertex>",
         `#include <uv_vertex>\nvMapUv = vMapUv * vec2(${(1 / LABEL.cols).toFixed(6)}, ${(1 / rows).toFixed(6)}) + labelCell;`,
       );
+    applyReveal(shader);
   };
   labelMat.customProgramCacheKey = () => "efedegam-folder-labels";
   add(labelGeo, labelMat, all, (f) =>

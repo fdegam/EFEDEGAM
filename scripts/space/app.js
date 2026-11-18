@@ -12,6 +12,9 @@ import {
   createReveal,
   patchCeiling,
   revealState,
+  switchLights,
+  updateLights,
+  lightsState,
 } from "./reveal.js";
 import { createFigure } from "./figure.js";
 import { addDrawerLabels } from "./labels.js";
@@ -214,7 +217,6 @@ function setSelected(d) {
   $("#drawerPanel").hidden = !d;
   $("#backToExplore").hidden = !d;
   document.body.classList.toggle("has-selection", Boolean(d));
-  if (ready) $("#walkControls").hidden = Boolean(d);
   updatePanel();
   invalidate();
 }
@@ -423,7 +425,6 @@ function finishIntro() {
   );
   $("#introTitle").hidden = true;
   $("#skipIntro").hidden = true;
-  $("#walkControls").hidden = Boolean(selected);
   canvas.focus({ preventScroll: true, focusVisible: false });
   announce(
     "Frente al archivo. Pulsa un cajón para abrirlo, o los cajones señalados para descubrir sus contenidos.",
@@ -589,13 +590,21 @@ function renderFrame(time) {
   let drawerMoving = false;
   for (const d of drawers)
     if (d.active && stepDrawer(d, time, dt)) drawerMoving = true;
+  // The light switch: tubes going out (or coming on) one by one.
+  if ((!reveal || reveal.finished) && lightsChanging)
+    lightsChanging = updateLights(time);
+  if (lightsChanging) drawerMoving = true;
   if (figure) {
     const state = revealState();
     const animating = figure.update(dt, {
       camera,
       viewportHeight: renderer.domElement.height,
       assemble: intro?.assemble ?? 1,
-      luminous: reveal && !reveal.finished ? 1 - (state.power - 0.1) / 0.9 : 0,
+      // In the dark (construction, or the Ctrl key) the figure glows.
+      luminous:
+        reveal && !reveal.finished
+          ? 1 - (state.power - 0.1) / 0.9
+          : Math.min(1, Math.max(0, (1 - state.power) / 0.97)),
       reduced: reduced.matches,
     });
     // It turns forever, but only costs frames while it is on screen.
@@ -682,7 +691,6 @@ function showError(message) {
   $("#scenePoster").hidden = false;
   hotspot.hidden = true;
   tags.forEach(({ element }) => (element.hidden = true));
-  $("#walkControls").hidden = true;
   $("#drawerPanel").hidden = true;
   $("#backToExplore").hidden = true;
   $("#loadingState").hidden = true;
@@ -979,7 +987,7 @@ async function start() {
     addTags();
     labelCount = addDrawerLabels(drawers);
     figure = createFigure(FIGURE_AT);
-    scene.add(figure.object, figure.shadow);
+    scene.add(figure.object, figure.shadow, figure.pool);
     wallTitle = createWallTitle();
     scene.add(wallTitle);
     navigation = new RoomNavigation(camera, canvas, config.walkBounds, {
@@ -1023,7 +1031,6 @@ async function start() {
       reduced.matches || new URLSearchParams(location.search).has("sinintro");
     if (skip) {
       // Without motion, the visitor sees the validated reference framing.
-      $("#walkControls").hidden = false;
       announce(
         "Sala lista. Pulsa un cajón para abrirlo, o selecciona Proyectos.",
       );
@@ -1104,30 +1111,6 @@ $("#toggleDrawer").addEventListener("click", () =>
   setSelectedDrawer(!isOpen(selected)),
 );
 $("#retryScene").addEventListener("click", () => location.reload());
-for (const button of document.querySelectorAll("[data-move]")) {
-  button.addEventListener("pointerdown", (event) => {
-    event.preventDefault();
-    button.setPointerCapture(event.pointerId);
-    navigation?.setDirection(button.dataset.move, true);
-  });
-  for (const name of ["pointerup", "pointercancel", "lostpointercapture"])
-    button.addEventListener(name, () =>
-      navigation?.setDirection(button.dataset.move, false),
-    );
-  button.addEventListener("keydown", (event) => {
-    if (event.code === "Space" || event.code === "Enter") {
-      event.preventDefault();
-      navigation?.setDirection(button.dataset.move, true);
-    }
-  });
-  button.addEventListener("keyup", (event) => {
-    if (event.code === "Space" || event.code === "Enter")
-      navigation?.setDirection(button.dataset.move, false);
-  });
-  button.addEventListener("blur", () =>
-    navigation?.setDirection(button.dataset.move, false),
-  );
-}
 addEventListener("keydown", (event) => {
   if (intro && ["Escape", "Enter", " "].includes(event.key)) {
     event.preventDefault();
@@ -1136,6 +1119,73 @@ addEventListener("keydown", (event) => {
     event.preventDefault();
     backToExplore();
   }
+});
+/* «Ctrl»: the light switch, a real key. Mouse, touch, its own keyboard focus
+   and the physical Ctrl key (pressed alone) all give the same keystroke. */
+const lightSwitch = $("#lightSwitch");
+let lightsChanging = false,
+  keyDownAt = 0,
+  ctrlArmed = false;
+function pressKey(down) {
+  if (down) {
+    keyDownAt = performance.now();
+    lightSwitch.classList.add("is-down");
+    return;
+  }
+  // A tap still shows the key travelling all the way down.
+  const held = performance.now() - keyDownAt;
+  setTimeout(
+    () => lightSwitch.classList.remove("is-down"),
+    Math.max(0, 70 - held),
+  );
+}
+function toggleLights() {
+  if (!ready || intro || failed) return;
+  const on = !lightsState().on;
+  switchLights(on, performance.now(), reduced.matches);
+  lightsChanging = true;
+  lightSwitch.setAttribute("aria-pressed", String(!on));
+  document.body.classList.toggle("lights-off", !on);
+  const label = on ? "Apagar las luces" : "Encender las luces";
+  lightSwitch.setAttribute("aria-label", label);
+  lightSwitch.title = `${label} (Ctrl)`;
+  announce(
+    on
+      ? "Luces encendidas."
+      : "Luces apagadas. La figura de luz brilla en la oscuridad.",
+  );
+  invalidate();
+}
+lightSwitch.addEventListener("pointerdown", () => pressKey(true));
+for (const name of ["pointerup", "pointerleave", "pointercancel"])
+  lightSwitch.addEventListener(name, () => {
+    if (lightSwitch.classList.contains("is-down")) pressKey(false);
+  });
+lightSwitch.addEventListener("keydown", (event) => {
+  if ((event.code === "Space" || event.code === "Enter") && !event.repeat)
+    pressKey(true);
+});
+lightSwitch.addEventListener("keyup", (event) => {
+  if (event.code === "Space" || event.code === "Enter") pressKey(false);
+});
+lightSwitch.addEventListener("click", toggleLights);
+addEventListener("keydown", (event) => {
+  if (event.key === "Control") {
+    if (!event.repeat) {
+      ctrlArmed = true;
+      pressKey(true);
+    }
+  } else ctrlArmed = false; // Ctrl+C and friends are not a light switch
+});
+addEventListener("keyup", (event) => {
+  if (event.key !== "Control") return;
+  pressKey(false);
+  if (ctrlArmed) toggleLights();
+  ctrlArmed = false;
+});
+addEventListener("blur", () => {
+  ctrlArmed = false;
+  lightSwitch.classList.remove("is-down");
 });
 addEventListener("resize", resize);
 canvas.addEventListener("pointerleave", () => {
@@ -1198,6 +1248,7 @@ export function getRoomState() {
     ready,
     intro: Boolean(intro),
     reveal: revealState(),
+    lights: lightsState(),
     labels: labelCount,
     building: Boolean(reveal && !reveal.finished),
     figure: figure

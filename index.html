@@ -21,6 +21,18 @@
       <span class="wordmark">EFEDEGAM</span>
       <span class="space-edition">UN ARCHIVO POR EXPLORAR</span>
     </header>
+    <button
+      id="lightSwitch"
+      class="keycap js-only"
+      type="button"
+      aria-pressed="false"
+      aria-label="Apagar las luces"
+      title="Apagar las luces (Ctrl)"
+    >
+      <span class="keycap-face" aria-hidden="true"
+        ><span class="keycap-label">Ctrl</span></span
+      >
+    </button>
     <main>
       <h1 class="sr-only">Explora la sala de EFEDEGAM</h1>
       <div id="sceneViewport" class="scene-viewport" aria-busy="false">
@@ -184,7 +196,8 @@
           <span class="desktop-help"
             >Arrastra para mirar · Flechas o WASD para caminar</span
           ><span class="touch-help"
-            >Arrastra para mirar · Usa las flechas para caminar</span
+            >Arrastra para mirar · Pellizca para avanzar · Toca el suelo para
+            ir</span
           ><br /><span
             >Pulsa cualquier cajón para abrirlo. Los señalados guardan
             algo.</span
@@ -230,54 +243,6 @@
             </svg>
           </button>
         </nav>
-      </div>
-      <div
-        id="walkControls"
-        class="walk-controls"
-        role="group"
-        aria-label="Caminar por la sala"
-        hidden
-      >
-        <button
-          data-move="forward"
-          class="walk-forward"
-          aria-label="Avanzar"
-          type="button"
-        >
-          <svg viewBox="0 0 20 20" aria-hidden="true">
-            <path d="m5 12 5-5 5 5" />
-          </svg>
-        </button>
-        <button
-          data-move="left"
-          class="walk-left"
-          aria-label="Desplazarse a la izquierda"
-          type="button"
-        >
-          <svg viewBox="0 0 20 20" aria-hidden="true">
-            <path d="m12 5-5 5 5 5" />
-          </svg>
-        </button>
-        <button
-          data-move="backward"
-          class="walk-backward"
-          aria-label="Retroceder"
-          type="button"
-        >
-          <svg viewBox="0 0 20 20" aria-hidden="true">
-            <path d="m5 8 5 5 5-5" />
-          </svg>
-        </button>
-        <button
-          data-move="right"
-          class="walk-right"
-          aria-label="Desplazarse a la derecha"
-          type="button"
-        >
-          <svg viewBox="0 0 20 20" aria-hidden="true">
-            <path d="m8 5 5 5-5 5" />
-          </svg>
-        </button>
       </div>
       <p id="sceneStatus" class="sr-only" role="status" aria-live="polite">
         Cargando el espacio interactivo.

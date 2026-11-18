@@ -154,21 +154,19 @@ class SpaceChecks(unittest.TestCase):
         self.page = self.context.new_page()
         self.page.on('pageerror', lambda e: self.errors.append(str(e)))
         self.load()
-        before = self.state()['camera']['position'][2]
-        button = self.page.locator('[data-move=forward]')
-        box = button.bounding_box()
-        session = self.context.new_cdp_session(self.page)
-        session.send('Input.dispatchTouchEvent', {'type':'touchStart', 'touchPoints':[{'x':box['x']+box['width']/2,'y':box['y']+box['height']/2}]})
-        self.wait_state('s.camera.position[2] < ' + str(before - .05))
-        session.send('Input.dispatchTouchEvent', {'type':'touchEnd', 'touchPoints':[]})
-        self.assertLess(self.state()['camera']['position'][2], before)
+        # No on-screen arrows: on a phone you walk by touching the floor.
+        expect(self.page.locator('[data-move]')).to_have_count(0)
+        before = self.state()['camera']['position']
+        self.page.touchscreen.tap(195, 690)
+        self.wait_state('s.camera.position[2] !== ' + str(before[2]) + ' || s.camera.position[0] !== ' + str(before[0]))
+        self.assertNotEqual(self.state()['camera']['position'], before)
         self.page.locator('#focusProjects').tap()
         self.page.locator('#toggleDrawer').tap()
         self.page.locator('#projectChoices button').last.tap()
         expect(self.page.locator('#projectTitle')).to_have_text('Sin clasificar')
         self.page.locator('#closeProjectDialog').tap()
         self.page.locator('#backToExplore').tap()
-        expect(self.page.locator('#walkControls')).to_be_visible()
+        expect(self.page.locator('#movementHelp')).to_be_visible()
 
     def test_floor_destination_and_physical_drawer_click(self):
         self.load()
@@ -213,7 +211,7 @@ class SpaceChecks(unittest.TestCase):
         self.assertGreater(start, 6, 'The entrance starts far from the archive')
         self.assertEqual(final['openDrawers'], [])
         expect(self.page.locator('#introTitle')).to_be_hidden()
-        expect(self.page.locator('#walkControls')).to_be_visible()
+        expect(self.page.locator('#lightSwitch')).to_be_visible()
 
     def test_skip_entrance(self):
         self.page.emulate_media(reduced_motion='no-preference')
@@ -242,6 +240,22 @@ class SpaceChecks(unittest.TestCase):
         self.assertEqual(self.state()['openDrawers'], ['C08_F10'])
         self.page.locator('#resetCamera').click()
         self.assertEqual(self.state()['openDrawers'], [])
+
+    def test_ctrl_key_switches_the_lights(self):
+        self.load()
+        key = self.page.locator('#lightSwitch')
+        expect(key).to_be_visible()
+        self.assertTrue(self.state()['lights']['on'])
+        key.click()
+        self.wait_state('!s.lights.on && s.lights.power <= 0.05')
+        expect(key).to_have_attribute('aria-pressed', 'true')
+        # Ctrl combined with another key is not a light switch.
+        self.page.keyboard.press('Control+c')
+        self.assertFalse(self.state()['lights']['on'])
+        # The physical Ctrl key, pressed alone, switches them back on.
+        self.page.keyboard.press('Control')
+        self.wait_state('s.lights.on && s.lights.power === 1')
+        expect(key).to_have_attribute('aria-pressed', 'false')
 
     def test_named_drawers_keep_their_names(self):
         self.load()

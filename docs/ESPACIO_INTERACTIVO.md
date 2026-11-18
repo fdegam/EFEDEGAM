@@ -56,9 +56,15 @@ Diferencias conocidas: los tiradores, de unos 3 px en el atlas, quedan ligeramen
 
 Las columnas van de C01 a C13, de izquierda a derecha; las filas, de F01 a F12, de arriba abajo. No se ha inventado el contenido de los cinco cajones pendientes. La planta, el teléfono, la película y el ticket no existen como objetos 3D en el `.blend`; solo están en la versión 2D V20 (historial de Git).
 
+### Luces: la tecla «Ctrl»
+
+En la esquina superior izquierda hay una tecla de teclado beige con «Ctrl», como una tecla real: al pulsarla se hunde sobre su faldón y vuelve con un pequeño rebote de muelle. Apaga las luces y, al volver a pulsarla, las enciende. También funciona la tecla Ctrl del teclado pulsada sola (no cuando se combina, como en Ctrl+C).
+
+Los 36 paneles del techo se apagan de forma descoordinada: cada uno recibe un retraso y un parpadeo propios, distintos en cada pulsación (`switchLights` / `updateLights` en `scripts/space/reveal.js`). La luz horneada de la sala sigue a los tubos que quedan encendidos hasta quedar en penumbra (3 %). A oscuras, la figura de puntos brilla con un halo fuerte e ilumina la moqueta a sus pies; la cabecera también se oscurece. Con movimiento reducido el cambio es instantáneo.
+
 ### Navegación
 
-Arrastra para mirar. WASD o las flechas para caminar, con la cruceta en pantalla. La rueda o la pinza avanzan y retroceden. Una pulsación en el suelo lleva a ese punto. El desplazamiento se limita a un rectángulo de suelo libre delante de los archivadores. «Vista inicial» vuelve al encuadre de referencia y cierra todos los cajones. Escape cierra la ficha y después devuelve a la exploración.
+Arrastra para mirar. En el ordenador, WASD o las flechas del teclado para caminar; en el móvil, pellizca para avanzar o retroceder. No hay flechas en pantalla. La rueda o la pinza avanzan y retroceden. Una pulsación en el suelo lleva a ese punto. El desplazamiento se limita a un rectángulo de suelo libre delante de los archivadores. «Vista inicial» vuelve al encuadre de referencia y cierra todos los cajones. Escape cierra la ficha y después devuelve a la exploración.
 
 Si WebGL no arranca o se interrumpe, aparecen la imagen estática y las seis fichas nativas en la misma página. Sin JavaScript, las fichas se pueden leer y desplegar.
 

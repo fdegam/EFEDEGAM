@@ -33,6 +33,81 @@ const U = {
 };
 const zoneUniforms = [1, 2, 3].map(() => ({ value: 1 }));
 
+/*
+ * Light switch (the «Ctrl» key). Each of the 36 ceiling panels (6 × 6,
+ * 1.13 × 1.2 m) gets its own delay and its own stutter every time the
+ * switch is pressed, so the tubes never go out — or come back — together.
+ * JS decides the delays and passes them to the shader, so the room's light
+ * level, computed here, follows exactly the panels you see.
+ */
+const PANELS = 36;
+const L = {
+  uLightsTime: { value: 1e6 },
+  uLightsOn: { value: 1 },
+  uPanelDelay: { value: new Array(PANELS).fill(0) },
+  uPanelVary: { value: new Array(PANELS).fill(0.5) },
+};
+const lights = { on: true, start: -1e6 };
+const DARK = 0.03; // with every tube out, the architecture is barely there
+const ON_STEPS = [0, 0.9, 0.08, 0.55, 0.15, 1, 0.7, 1];
+const OFF_STEPS = [1, 0.25, 0.9, 0.05, 0.6, 0, 0.3, 0];
+/** Brightness of panel `i` at `t` ms after the switch (mirrors the GLSL). */
+function panelValue(i, t, on) {
+  const local = t - L.uPanelDelay.value[i];
+  const vary = L.uPanelVary.value[i];
+  if (on) {
+    if (local <= 0) return 0;
+    const k = local / (300 + vary * 260);
+    return k >= 1 ? 1 : ON_STEPS[Math.min(7, Math.floor(k * 8))];
+  }
+  if (local <= 0) return 1;
+  const k = local / (110 + vary * 300);
+  return k >= 1 ? 0 : OFF_STEPS[Math.min(7, Math.floor(k * 8))];
+}
+export function switchLights(on, now, instant = false) {
+  lights.on = on;
+  lights.start = instant ? now - 1e5 : now;
+  for (let i = 0; i < PANELS; i++) {
+    L.uPanelDelay.value[i] = Math.random() * (on ? 1000 : 1100);
+    L.uPanelVary.value[i] = Math.random();
+  }
+  L.uLightsOn.value = on ? 1 : 0;
+}
+/** Advances the switch; returns true while tubes are still changing. */
+export function updateLights(now) {
+  const t = now - lights.start;
+  L.uLightsTime.value = t;
+  let sum = 0;
+  for (let i = 0; i < PANELS; i++) sum += panelValue(i, t, lights.on);
+  U.uRevealPower.value = DARK + (1 - DARK) * (sum / PANELS);
+  return t < 1900;
+}
+export function lightsState() {
+  return { on: lights.on, power: U.uRevealPower.value };
+}
+const PANEL_GLSL = /* glsl */ `
+uniform float uLightsTime, uLightsOn;
+uniform float uPanelDelay[${PANELS}];
+uniform float uPanelVary[${PANELS}];
+const float ON_STEPS[8] = float[8](${ON_STEPS.map((v) => v.toFixed(2)).join(", ")});
+const float OFF_STEPS[8] = float[8](${OFF_STEPS.map((v) => v.toFixed(2)).join(", ")});
+float panelLight(vec3 p) {
+  int ix = int(clamp(floor((p.x + 3.39) / 1.13), 0.0, 5.0));
+  int iz = int(clamp(floor((p.z - 0.009) / 1.2), 0.0, 5.0));
+  int i = ix + 6 * iz;
+  float local = uLightsTime - uPanelDelay[i];
+  float vary = uPanelVary[i];
+  if (uLightsOn > 0.5) {
+    if (local <= 0.0) return 0.0;
+    float k = local / (300.0 + vary * 260.0);
+    return k >= 1.0 ? 1.0 : ON_STEPS[int(min(7.0, floor(k * 8.0)))];
+  }
+  if (local <= 0.0) return 1.0;
+  float k = local / (110.0 + vary * 300.0);
+  return k >= 1.0 ? 0.0 : OFF_STEPS[int(min(7.0, floor(k * 8.0)))];
+}
+`;
+
 const NOISE = /* glsl */ `
 varying vec3 vRevealPos;
 uniform vec3 uRevealCenter;
@@ -56,7 +131,12 @@ float revealDistance() {
 }
 `;
 const VERTEX_DECL = "varying vec3 vRevealPos;";
-const VERTEX_POS = "vRevealPos = (modelMatrix * vec4(transformed, 1.0)).xyz;";
+const VERTEX_POS = `
+  #ifdef USE_INSTANCING
+    vRevealPos = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
+  #else
+    vRevealPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
+  #endif`;
 
 /**
  * Adds the wave to a lit material's shader (call inside onBeforeCompile).
@@ -64,7 +144,7 @@ const VERTEX_POS = "vRevealPos = (modelMatrix * vec4(transformed, 1.0)).xyz;";
  * flicker; every other surface follows the global light level.
  */
 export function applyReveal(shader, zone = 0) {
-  Object.assign(shader.uniforms, U);
+  Object.assign(shader.uniforms, U, L);
   shader.uniforms.uRevealZone = zone ? zoneUniforms[zone - 1] : U.uRevealPower;
   shader.vertexShader = shader.vertexShader
     .replace("#include <common>", `#include <common>\n${VERTEX_DECL}`)
@@ -75,7 +155,7 @@ export function applyReveal(shader, zone = 0) {
   shader.fragmentShader = shader.fragmentShader
     .replace(
       "#include <common>",
-      `#include <common>\n${NOISE}\nuniform vec3 uRevealGlow;\nuniform float uRevealPower, uRevealZone;`,
+      `#include <common>\n${NOISE}\n${zone ? PANEL_GLSL : ""}\nuniform vec3 uRevealGlow;\nuniform float uRevealPower, uRevealZone;`,
     )
     .replace(
       "#include <clipping_planes_fragment>",
@@ -87,7 +167,7 @@ export function applyReveal(shader, zone = 0) {
     .replace(
       "#include <emissivemap_fragment>",
       `#include <emissivemap_fragment>
-      totalEmissiveRadiance = totalEmissiveRadiance * uRevealZone + uRevealGlow * revealBand;`,
+      totalEmissiveRadiance = totalEmissiveRadiance * uRevealZone${zone ? " * panelLight(vRevealPos)" : ""} + uRevealGlow * revealBand;`,
     )
     .replace(
       "#include <lights_fragment_maps>",

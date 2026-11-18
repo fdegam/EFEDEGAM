@@ -16,7 +16,8 @@ Abre la raíz del servidor en el navegador. Los módulos JavaScript requieren HT
 
 ## Uso
 
-- Arrastra para mirar alrededor. Con el lienzo enfocado, usa WASD o flechas para caminar. También hay controles en pantalla, desplazamiento al pulsar el suelo y avance/retroceso con rueda o pinza táctil.
+- Arrastra para mirar alrededor. Con el lienzo enfocado, usa WASD o flechas para caminar. También puedes pulsar el suelo para ir a ese punto y avanzar o retroceder con la rueda o la pinza táctil.
+- La tecla «Ctrl» de la esquina superior izquierda (o la tecla Ctrl del teclado, pulsada sola) apaga y enciende las luces.
 - «Saltar entrada», Escape o un clic terminan la secuencia inicial. Con movimiento reducido no se reproduce.
 - Pulsa cualquier cajón para abrirlo o cerrarlo. Los cajones con etiqueta acercan la cámara y muestran un panel.
 - Pulsa el cajón 023, su marcador o «Ir a proyectos» para acercarte; después abre el cajón y elige una carpeta física o una ficha de la lista.
