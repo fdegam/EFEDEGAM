@@ -26,11 +26,15 @@ Diferencias conocidas: los tiradores, de unos 3 px en el atlas, quedan ligeramen
 
 ### Entrada (unos 4,6 s)
 
+**00 · Construcción** (unos 3,8 s, `scripts/space/reveal.js`), inspirada en la referencia del propietario (bricelab.dev): carga técnica con retícula, porcentaje y barra; la sala a oscuras dibujada solo en líneas; una onda luminosa nace en el cajón 023 y materializa el archivo, el suelo (con una retícula escaneada), las paredes y el techo; después los paneles se encienden por zonas, Z1→Z3, con parpadeo de fluorescente. Las líneas desaparecen al terminar, sin coste en reposo.
+
+**Figura de luz** (`scripts/space/figure.js`): una persona de pie en el centro de la sala (z = 3,35 m), hecha de unos 22.000 puntos luminosos con un halo suave, según la imagen de referencia del propietario. Se ensambla desde el polvo con la sala aún a oscuras, gira sobre sí misma, se aparta del cursor y se dispersa cuando la cámara la atraviesa (la entrada la atraviesa al acelerar; también se puede cruzar caminando). Proyecta una sombra suave en el suelo, generada a partir de sus propios puntos, porque la sala no tiene luces en tiempo real. Está preparada para sustituirla por un escaneo del propietario: `createFigure(posición, { points, layers })`. El título «EFEDEGAM» aparece escrito sobre el archivo, detrás de la figura.
+
 1. **Espacio**: plano general desde la cámara de referencia, con un avance casi imperceptible.
 2. **Identidad**: aparece «EFEDEGAM · ARCHIVO PERSONAL» en verde tinta.
 3. **Movimiento**: aceleración fuerte (curva t^3,2); el rótulo sale despedido hacia la cámara.
 4. **Frenazo**: la cámara llega a máxima velocidad, se pasa unos 15 cm y retrocede con una oscilación amortiguada y un ligero cabeceo. La pared encaja el golpe: cada cajón recibe un pequeño impulso, en onda desde el centro, sale como mucho unos 6 mm y vuelve amortiguado, sin rebotes secos.
-5. **Interacción**: la cámara queda a 3,9 m del archivo (4,4 m en móvil), con la pared completa entre techo y moqueta.
+5. **Interacción**: tras atravesar la figura, la cámara queda a 2,95 m del archivo.
 
 «Saltar entrada», Escape, Intro, un clic o un arrastre terminan la secuencia al instante. Con `prefers-reduced-motion` no hay entrada: se muestra directamente el encuadre de referencia. Para revisar sin entrada se puede añadir `?sinintro` a la dirección.
 

@@ -6,6 +6,14 @@ import { RoomNavigation } from "./navigation.js";
 import { projects } from "../projects.js";
 import { specialDrawers } from "../drawers.js";
 import { buildFolders } from "./folders.js";
+import {
+  BUILD,
+  applyReveal,
+  createReveal,
+  patchCeiling,
+  revealState,
+} from "./reveal.js";
+import { createFigure } from "./figure.js";
 
 const $ = (selector) => document.querySelector(selector);
 const viewport = $("#sceneViewport"),
@@ -27,6 +35,10 @@ const raycaster = new THREE.Raycaster(),
   projected = new THREE.Vector3();
 const hotspot = $("#projectHotspot");
 let folders = null; // kraft folders of drawer 023 (scripts/space/folders.js)
+let figure = null; // a person made of light points, at the centre (scripts/space/figure.js)
+let wallTitle = null; // EFEDEGAM written across the archive, behind the figure
+let reveal = null; // the archive building itself (scripts/space/reveal.js)
+const FIGURE_AT = new THREE.Vector3(0, 0, 3.35); // centre of the room
 
 /* ------------------------------------------------------------------ */
 /* Drawers: 156 independent drawers drawn as one mesh per material.     */
@@ -161,10 +173,10 @@ function initialPose() {
     quaternion: new THREE.Quaternion(...config.camera.quaternion),
   };
 }
-/** Where the entrance stops: in front of the archive, the whole wall between ceiling and carpet. */
+/** Where the entrance stops: through the figure, in front of the archive. */
 function arrivalPose() {
   return {
-    position: new THREE.Vector3(0, 1.28, innerWidth <= 760 ? 4.4 : 3.9),
+    position: new THREE.Vector3(0, 1.28, 2.95), // just past the figure
     quaternion: new THREE.Quaternion(),
   };
 }
@@ -336,6 +348,7 @@ function tap(clientX, clientY) {
 function hover(x, y) {
   if (intro) return;
   const hit = pick(x, y);
+  figure?.setPointer(raycaster.ray);
   folders?.setHovered(hit?.kind === "folder" ? hit.index : -1);
   invalidate();
   canvas.classList.toggle(
@@ -371,10 +384,13 @@ function startIntro() {
   const creep = from.position.clone().add(new THREE.Vector3(0, 0.03, -0.32));
   intro = { start: performance.now(), from, creep, to: arrivalPose() };
   drawers.forEach((d) => (d.jolted = false));
+  room.updateMatrixWorld(true);
+  const centre = projectDrawer.node.getWorldPosition(new THREE.Vector3());
+  centre.z += 0.05; // the wave is born at the front of drawer 023
+  reveal = createReveal(scene, revealMeshes(), centre);
   document.body.classList.add("is-intro");
   $("#introTitle").hidden = false;
   $("#skipIntro").hidden = false;
-  requestAnimationFrame(() => document.body.classList.add("intro-show-title"));
   announce("EFEDEGAM. Entrando en el archivo. Pulsa Saltar para empezar.");
   invalidate();
 }
@@ -382,6 +398,9 @@ function finishIntro() {
   if (!intro) return;
   const to = intro.to;
   intro = null;
+  reveal?.finish();
+  reveal = null;
+  setWallTitle(0);
   camera.position.copy(to.position);
   camera.quaternion.copy(to.quaternion);
   drawers.forEach((d) => {
@@ -407,9 +426,33 @@ const smooth = (t) => t * t * (3 - 2 * t);
 const shake = new THREE.Euler();
 const shakeQ = new THREE.Quaternion();
 function updateIntro(time) {
-  const t = intro.frozen ?? time - intro.start;
+  const total = intro.frozen ?? time - intro.start;
   const { from, creep, to } = intro;
   const { hold, rush, brake } = INTRO;
+  // 00 · Construction: the archive builds itself from drawer 023.
+  if (total < BUILD) {
+    reveal?.update(total);
+    camera.position.copy(from.position);
+    camera.quaternion.copy(from.quaternion);
+    // The figure gathers while the room is still dark, then the lights come on.
+    intro.assemble = Math.min(1, Math.max(0, (total - 1200) / 1300));
+    setWallTitle(0);
+    return;
+  }
+  if (reveal && !reveal.finished) {
+    reveal.finish();
+    document.body.classList.add("intro-show-title");
+  }
+  intro.assemble = 1;
+  const t = total - BUILD;
+  // 02 · Identity: EFEDEGAM appears on the archive, behind the figure; the
+  // rush carries the camera through the figure towards it.
+  setWallTitle(
+    t < hold + rush
+      ? Math.min(1, Math.max(0, (t - 500) / 900)) *
+          (1 - Math.min(1, Math.max(0, (t - hold) / (rush * 0.75))))
+      : 0,
+  );
   if (t < hold) {
     // 01 · The space: a slow, almost imperceptible advance.
     const k = smooth(t / hold);
@@ -451,6 +494,64 @@ function updateIntro(time) {
   } else return finishIntro();
 }
 
+const figureFrustum = new THREE.Frustum();
+const figureMatrix = new THREE.Matrix4();
+/** Room meshes the construction draws in lines (closed drawers included). */
+function revealMeshes() {
+  const list = [];
+  room.traverse((o) => {
+    if (!o.isMesh || !o.visible) return;
+    const owner = `${o.name} ${o.parent?.name ?? ""}`;
+    if (
+      /Room_Architecture|Archive_Structure|Ceiling_Lights|Archive_Drawers/.test(
+        owner,
+      ) ||
+      /LUZ_ZONA/.test(o.material.name)
+    )
+      list.push(o);
+  });
+  return list;
+}
+/** EFEDEGAM across the archive wall, as a sign painted on air. */
+function createWallTitle() {
+  const c = document.createElement("canvas");
+  c.width = 2048;
+  c.height = 512;
+  const g = c.getContext("2d");
+  g.fillStyle = "#24382c";
+  g.textAlign = "center";
+  g.textBaseline = "alphabetic";
+  g.font = '700 300px "DM Sans", sans-serif';
+  g.letterSpacing = "-12px";
+  g.fillText("EFEDEGAM", 1024, 330);
+  g.letterSpacing = "26px";
+  g.font = '500 44px "DM Mono", monospace';
+  g.fillText("ARCHIVO PERSONAL", 1024, 450);
+  const texture = new THREE.CanvasTexture(c);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 4;
+  const mesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(4.8, 1.2),
+    new THREE.MeshBasicMaterial({
+      map: texture,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      toneMapped: false,
+    }),
+  );
+  mesh.name = "Wall_Title";
+  mesh.position.set(0, 1.42, 0.07); // just in front of the drawer fronts
+  mesh.renderOrder = 3;
+  mesh.visible = false;
+  return mesh;
+}
+function setWallTitle(opacity) {
+  if (!wallTitle) return;
+  wallTitle.material.opacity = opacity;
+  wallTitle.visible = opacity > 0.002;
+}
+
 /* ------------------------------------------------------------------ */
 function renderFrame(time) {
   frame = 0;
@@ -480,6 +581,25 @@ function renderFrame(time) {
   let drawerMoving = false;
   for (const d of drawers)
     if (d.active && stepDrawer(d, time, dt)) drawerMoving = true;
+  if (figure) {
+    const state = revealState();
+    const animating = figure.update(dt, {
+      camera,
+      viewportHeight: renderer.domElement.height,
+      assemble: intro?.assemble ?? 1,
+      luminous: reveal && !reveal.finished ? 1 - (state.power - 0.1) / 0.9 : 0,
+      reduced: reduced.matches,
+    });
+    // It turns forever, but only costs frames while it is on screen.
+    figureFrustum.setFromProjectionMatrix(
+      figureMatrix.multiplyMatrices(
+        camera.projectionMatrix,
+        camera.matrixWorldInverse,
+      ),
+    );
+    if (animating && figureFrustum.intersectsSphere(figure.bounds))
+      drawerMoving = true;
+  }
   if (folders) {
     folders.group.visible = projectDrawer.offset > 0.01;
     if (folders.group.visible && folders.update(dt, projectDrawer.acc))
@@ -564,6 +684,15 @@ function showError(message) {
   announce(message);
 }
 
+/** Technical loader: one percentage and a hairline bar. */
+let shownProgress = 0;
+function setProgress(share) {
+  const value = Math.max(shownProgress, Math.round(share * 100));
+  shownProgress = value;
+  $("#loadingText").textContent = `${String(value).padStart(2, "0")} %`;
+  $("#loadingBar").style.transform = `scaleX(${value / 100})`;
+}
+
 /* ------------------------------------------------------------------ */
 /* Scene set-up                                                         */
 /* ------------------------------------------------------------------ */
@@ -601,6 +730,7 @@ function patchReflections(material, extra) {
       reflectionsOnly,
     );
     extra?.(shader);
+    applyReveal(shader);
   };
   material.customProgramCacheKey = () =>
     extra ? "efedegam-drawers" : "efedegam-room";
@@ -773,9 +903,7 @@ async function start() {
       new GLTFLoader()
         .setMeshoptDecoder(MeshoptDecoder)
         .loadAsync("assets/models/room.glb", (event) => {
-          if (event.total)
-            $("#loadingText").textContent =
-              `Preparando la sala… ${Math.round((event.loaded / event.total) * 100)} %`;
+          if (event.total) setProgress((event.loaded / event.total) * 0.9);
         }),
       loadLightmaps(),
     ]);
@@ -799,6 +927,8 @@ async function start() {
           lightmaps.archive,
           cache,
         );
+      else if (/LUZ_ZONA/.test(object.material.name))
+        patchCeiling(object.material);
     });
     await applyCarpet();
     const specials = new Map(specialDrawers.map((s) => [`CAJON_${s.id}`, s]));
@@ -832,6 +962,10 @@ async function start() {
     batchDrawers(lightmaps.archive);
     await addFolders();
     addTags();
+    figure = createFigure(FIGURE_AT);
+    scene.add(figure.object, figure.shadow);
+    wallTitle = createWallTitle();
+    scene.add(wallTitle);
     navigation = new RoomNavigation(camera, canvas, config.walkBounds, {
       onChange: invalidate,
       onInput: () => (intro ? finishIntro() : userInput()),
@@ -841,7 +975,9 @@ async function start() {
     resize();
     // Compile before dismissing the loading state, so the first interaction
     // is not spent waiting for materials to initialize.
+    setProgress(0.96);
     await renderer.compileAsync(scene, camera);
+    setProgress(1);
     if (new URLSearchParams(location.search).has("debug"))
       window.__efedegam = {
         THREE,
@@ -985,6 +1121,10 @@ addEventListener("keydown", (event) => {
   }
 });
 addEventListener("resize", resize);
+canvas.addEventListener("pointerleave", () => {
+  figure?.setPointer(null);
+  invalidate();
+});
 addEventListener("blur", () => {
   lastTime = 0;
 });
@@ -1040,6 +1180,17 @@ export function getRoomState() {
     drawerScreen: (id) => screen(drawerById.get(id)),
     ready,
     intro: Boolean(intro),
+    reveal: revealState(),
+    building: Boolean(reveal && !reveal.finished),
+    figure: figure
+      ? {
+          points: figure.object.geometry.attributes.position.count,
+          inScene: Boolean(figure.object.parent),
+        }
+      : null,
+    wallTitle: wallTitle
+      ? { visible: wallTitle.visible, opacity: wallTitle.material.opacity }
+      : null,
     selected: selected?.id ?? null,
     isOpen: projectDrawer ? isOpen(projectDrawer) : false,
     openDrawers: drawers.filter(isOpen).map((d) => d.id),

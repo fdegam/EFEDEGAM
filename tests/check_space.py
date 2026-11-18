@@ -193,7 +193,15 @@ class SpaceChecks(unittest.TestCase):
             self.page.wait_for_timeout(20)
         final = self.state()
         self.assertFalse(final['intro'], 'Entrance must end by itself')
-        self.assertAlmostEqual(final['camera']['position'][2], 3.9, places=3)
+        self.assertAlmostEqual(final['camera']['position'][2], 2.95, places=3)
+        # The construction is over: whole room drawn, fully lit, no lines left.
+        self.assertFalse(final['building'])
+        self.assertGreaterEqual(final['reveal']['radius'], 1000)
+        self.assertEqual(final['reveal']['power'], 1)
+        self.assertEqual(final['reveal']['lines'], 0)
+        self.assertTrue(final['figure']['inScene'])
+        self.assertGreater(final['figure']['points'], 20000)
+        self.assertFalse(final['wallTitle']['visible'])
         self.assertGreater(start, 6, 'The entrance starts far from the archive')
         self.assertEqual(final['openDrawers'], [])
         expect(self.page.locator('#introTitle')).to_be_hidden()
@@ -202,11 +210,15 @@ class SpaceChecks(unittest.TestCase):
     def test_skip_entrance(self):
         self.page.emulate_media(reduced_motion='no-preference')
         self.page.goto(self.url + '/', wait_until='networkidle')
+        expect(self.page.locator('#sceneViewport')).to_have_class(re.compile('is-ready'), timeout=180000)
         # Software WebGL is slow: press the button as soon as it appears.
         self.page.wait_for_function("() => { const b = document.querySelector('#skipIntro'); if (b && !b.hidden) { b.click(); return true; } return false; }", polling=20, timeout=45000)
         state = self.state()
         self.assertFalse(state['intro'])
-        self.assertAlmostEqual(state['camera']['position'][2], 3.9, places=4)
+        self.assertAlmostEqual(state['camera']['position'][2], 2.95, places=4)
+        self.assertFalse(state['building'], 'Skipping must leave the room built')
+        self.assertGreaterEqual(state['reveal']['radius'], 1000)
+        self.assertEqual(state['reveal']['power'], 1)
 
     def test_every_drawer_opens_independently(self):
         self.load()

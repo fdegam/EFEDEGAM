@@ -148,30 +148,59 @@ button:active:not(:disabled) {
 .scene-viewport canvas:focus-visible {
   outline-offset: -5px;
 }
+/* Technical loader: the archive is being drawn before it is built. */
 .loading-state {
   position: absolute;
   inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  background: #e9ece3b8;
+  z-index: 6;
+  background: #090b0a;
+  color: #cfe9dc;
 }
-.loading-state p {
-  font-size: 14px;
+.loading-grid {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(#cfe9dc14 1px, transparent 1px) 0 0 / 100% 33.33%,
+    linear-gradient(90deg, #cfe9dc14 1px, transparent 1px) 0 0 / 25% 100%;
 }
-.loading-mark {
-  width: 17px;
-  height: 17px;
-  border: 1px solid #53644b;
-  border-top-color: transparent;
-  border-radius: 50%;
-  animation: load-turn 1s linear infinite;
+.loading-label {
+  position: absolute;
+  top: 28px;
+  right: 32px;
+  font: 10px var(--mono);
+  letter-spacing: 0.24em;
+  opacity: 0.6;
 }
-@keyframes load-turn {
-  to {
-    transform: rotate(360deg);
-  }
+.loading-bar {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 180px;
+  height: 2px;
+  transform: translate(-50%, -50%);
+  background: #cfe9dc26;
+  overflow: hidden;
+}
+.loading-bar > span {
+  position: absolute;
+  inset: 0;
+  background: #cfe9dc;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.25s ease-out;
+}
+.loading-percent {
+  position: absolute;
+  left: 32px;
+  bottom: 24px;
+  margin: 0;
+  font: 300 clamp(44px, 8vw, 96px) / 1 var(--mono);
+  letter-spacing: -0.04em;
+}
+/* The HTML wordmark stays for assistive technology; the visible one is
+   written on the archive, behind the figure. */
+.intro-title {
+  display: none !important;
 }
 .scene-error {
   position: absolute;
@@ -540,9 +569,6 @@ button:active:not(:disabled) {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
-  }
-  .loading-mark {
-    border-top-color: #53644b;
   }
 }
 

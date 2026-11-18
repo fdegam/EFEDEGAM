@@ -62,8 +62,17 @@
           Saltar entrada
         </button>
         <div id="loadingState" class="loading-state" role="status">
-          <span class="loading-mark" aria-hidden="true"></span>
-          <p id="loadingText">Preparando la sala…</p>
+          <span class="sr-only">Preparando la sala</span>
+          <span class="loading-grid" aria-hidden="true"></span>
+          <span class="loading-label" aria-hidden="true"
+            >EFEDEGAM · ARCHIVO PERSONAL</span
+          >
+          <span class="loading-bar" aria-hidden="true"
+            ><span id="loadingBar"></span
+          ></span>
+          <p id="loadingText" class="loading-percent" aria-hidden="true">
+            00 %
+          </p>
         </div>
         <section
           id="sceneError"

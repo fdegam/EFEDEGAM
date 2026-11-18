@@ -124,7 +124,7 @@ function leafWithTab(tabCentre) {
 
 export function buildFolders(projects) {
   const kraft = kraftTexture();
-  const paper = (color, map) =>
+  const paper = (color, map = null) =>
     new THREE.MeshStandardMaterial({
       color,
       map,
