@@ -257,12 +257,32 @@ class SpaceChecks(unittest.TestCase):
         self.wait_state('s.lights.on && s.lights.power === 1')
         expect(key).to_have_attribute('aria-pressed', 'false')
 
+    def test_plantimania_ivy_takes_the_room(self):
+        self.page.goto(self.url + '/?sinsalida', wait_until='networkidle')
+        expect(self.page.locator('#sceneViewport')).to_have_class(re.compile('is-ready'), timeout=45000)
+        tag = self.page.locator('.drawer-tag', has_text='PLANTIMANÍA')
+        tag.focus()
+        self.page.keyboard.press('Enter')
+        expect(self.page.locator('#drawerTitle')).to_have_text('Plantimanía')
+        self.page.locator('#toggleDrawer').click()
+        state = self.state()
+        self.assertEqual(state['ivy']['stage'], 1)
+        self.assertGreater(state['ivy']['leaves'], 20000)
+        # Pressing the open drawer again lets the ivy take the room.
+        point = self.page.evaluate("async () => (await import('./scripts/space/app.js')).getRoomState().drawerScreen('C04_F09')")
+        self.page.mouse.click(point['x'] - 40, point['y'] + 10)
+        self.wait_state('s.ivy.stage >= 2')
+        # With reduced motion it reaches the green at once; ?sinsalida keeps
+        # the test here instead of opening the Plantimanía site.
+        self.wait_state('s.ivy.left')
+        expect(self.page.locator('.ivy-veil')).to_have_css('opacity', '1')
+
     def test_named_drawers_keep_their_names(self):
         self.load()
         tags = self.page.locator('.drawer-tag')
         expect(tags).to_have_count(5)
         names = [t.lower() for t in tags.all_inner_texts()]
-        for name in ['el vacío', 'planta pixelada', 'película analógica', 'teléfono', 'ticket']:
+        for name in ['el vacío', 'plantimanía', 'película analógica', 'teléfono', 'ticket']:
             self.assertTrue(any(name in t for t in names), name)
         self.page.locator('.drawer-tag', has_text='EL VACÍO').focus()
         self.page.keyboard.press('Enter')

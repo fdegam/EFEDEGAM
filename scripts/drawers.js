@@ -24,8 +24,8 @@ export const specialDrawers = [
   {
     id: "C04_F09",
     code: "",
-    name: "Planta pixelada",
-    kind: "pending",
+    name: "Plantimanía",
+    kind: "plant", // opens to a pixel ivy that takes the room (scripts/space/ivy.js)
     sticker: "#6f9a52",
   },
   {

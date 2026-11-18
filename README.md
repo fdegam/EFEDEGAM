@@ -2,7 +2,7 @@
 
 La sala 3D **es el portfolio**. Se carga directamente al entrar en la web, desde `index.html`, sin portada ni menú de acceso. Usa el espacio aportado en Blender, su cámara de referencia y **la luz calculada por Cycles**, horneada en texturas.
 
-Al entrar, una secuencia cinematográfica recorre la sala: espacio, EFEDEGAM, aceleración y frenazo frente al archivo. Los 156 cajones se abren y se cierran. El cajón «Proyectos 023» contiene seis fichas de ejemplo; otros cinco cajones tienen nombre (El vacío 099, Planta pixelada, Película analógica, Teléfono, Ticket), con su contenido pendiente. Los trabajos y textos siguen siendo provisionales.
+Al entrar, una secuencia cinematográfica recorre la sala: espacio, EFEDEGAM, aceleración y frenazo frente al archivo. Los 156 cajones se abren y se cierran. El cajón «Proyectos 023» contiene seis fichas de ejemplo; otros cinco cajones tienen nombre (El vacío 099, Plantimanía, Película analógica, Teléfono, Ticket). Plantimanía suelta una hiedra pixelada que invade la sala y lleva a la web de Plantimanía; los demás tienen su contenido pendiente. Los trabajos y textos siguen siendo provisionales.
 
 ## Desarrollo local
 

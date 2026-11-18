@@ -45,16 +45,22 @@ Diferencias conocidas: los tiradores, de unos 3 px en el atlas, quedan ligeramen
 - Cajón 023: 32 carpetas colgantes de cartón kraft (`scripts/space/folders.js`), según la foto de referencia de Drive › `Referencias`. Están muy juntas e inclinadas unos 17° hacia el fondo, con pestañas escalonadas, etiquetas blancas que asoman y algunos folios. Las seis de proyectos llevan su título y una marca de su color; al pasar el ratón por encima, la carpeta se levanta 2,8 cm. Las carpetas se balancean por inercia cuando el cajón arranca o frena. No sobresalen del cajón para no atravesar el estante superior al cerrarlo.
 - Seis cajones tienen nombre. Como en la referencia del propietario, cada uno lleva en el frente una **pegatina de color** con lo que archiva y una **tarjeta en un portaetiquetas metálico** con su número y posición (`scripts/space/labels.js`; colores en `scripts/drawers.js`). Se abren con el cajón. Los accesos HTML para teclado y lectores de pantalla siguen ahí, invisibles hasta recibir el foco. Al pulsarlos, la cámara se acerca y aparece un panel. Su ubicación sigue la composición de V20 y se edita en `scripts/drawers.js`:
 
-| Cajón (columna_fila) | Código | Nombre             | Estado                 |
-| -------------------- | ------ | ------------------ | ---------------------- |
-| C07_F06              | 023    | Proyectos          | Seis fichas de ejemplo |
-| C11_F05              | 099    | El vacío           | Contenido pendiente    |
-| C04_F09              |        | Planta pixelada    | Contenido pendiente    |
-| C04_F02              |        | Película analógica | Contenido pendiente    |
-| C11_F08              |        | Teléfono           | Contenido pendiente    |
-| C10_F04              |        | Ticket             | Contenido pendiente    |
+| Cajón (columna_fila) | Código | Nombre             | Estado                            |
+| -------------------- | ------ | ------------------ | --------------------------------- |
+| C07_F06              | 023    | Proyectos          | Seis fichas de ejemplo            |
+| C11_F05              | 099    | El vacío           | Contenido pendiente               |
+| C04_F09              |        | Plantimanía        | Hiedra pixelada → web Plantimanía |
+| C04_F02              |        | Película analógica | Contenido pendiente               |
+| C11_F08              |        | Teléfono           | Contenido pendiente               |
+| C10_F04              |        | Ticket             | Contenido pendiente               |
 
 Las columnas van de C01 a C13, de izquierda a derecha; las filas, de F01 a F12, de arriba abajo. No se ha inventado el contenido de los cinco cajones pendientes. La planta, el teléfono, la película y el ticket no existen como objetos 3D en el `.blend`; solo están en la versión 2D V20 (historial de Git).
+
+### PLANTIMANÍA
+
+El cajón C04_F09 (`scripts/space/ivy.js`). Al abrirlo, sale de su interior una **hiedra pixelada** que trepa al azar por los cajones vecinos (unos 4 s). Si se vuelve a pulsar el cajón, la hiedra **invade toda la sala** (paredes, techo y suelo; la cámara retrocede al centro), después crece **sobre la cámara** desde los bordes de la pantalla hasta cubrirla, y la pantalla queda en el verde de Plantimanía (#47622f con grano) antes de abrir https://fdegam.github.io/Plantimania-a/. Cerrar el cajón antes de la invasión, o «Vista inicial», la devuelve dentro.
+
+El aspecto es el de la referencia del propietario: una planta **muy pixelada**, como una fotografía ampliada a bloques. Las hojas (suaves, con degradados) se dibujan en una capa aparte a 1/70 de la resolución y se amplían sin suavizado, en bloques de unos 15 px. Unas 50.000 hojas en una sola llamada de dibujo, que crecen en el GPU según su instante de nacimiento; el recorrido es aleatorio, con ramas, sobre una retícula de 7 cm por las superficies de la sala. Siguen la luz de la tecla Ctrl. Con movimiento reducido, cada fase aparece de golpe. En las pruebas, `?sinsalida` evita abrir la otra web.
 
 ### Luces: la tecla «Ctrl»
 

@@ -20,7 +20,7 @@ const T = {
 const GLOW = new THREE.Color("#ffa516"); // warm amber yellow (AgX desaturates brights)
 const FULL = 1e4; // radius once built: no fragment is ever discarded
 
-const U = {
+export const sharedUniforms = {
   uRevealCenter: { value: new THREE.Vector3() },
   uRevealRadius: { value: FULL },
   uRevealBand: { value: 0.12 },
@@ -31,6 +31,7 @@ const U = {
   uLineOpacity: { value: 0 },
   uLineLead: { value: 0.9 },
 };
+const U = sharedUniforms;
 const zoneUniforms = [1, 2, 3].map(() => ({ value: 1 }));
 
 /*

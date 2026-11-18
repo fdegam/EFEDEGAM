@@ -15,7 +15,9 @@ import {
   switchLights,
   updateLights,
   lightsState,
+  sharedUniforms,
 } from "./reveal.js";
+import { createIvy, PLANTIMANIA_URL } from "./ivy.js";
 import { createFigure } from "./figure.js";
 import { addDrawerLabels } from "./labels.js";
 
@@ -40,6 +42,8 @@ const raycaster = new THREE.Raycaster(),
 const hotspot = $("#projectHotspot");
 let folders = null; // kraft folders of drawer 023 (scripts/space/folders.js)
 let figure = null; // a person made of light points, at the centre (scripts/space/figure.js)
+let ivy = null; // PLANTIMANÍA (scripts/space/ivy.js)
+let ivyLeft = false; // tests: reached the green, stayed here (?sinsalida)
 let labelCount = 0; // stickers and name cards on the named drawers
 let wallTitle = null; // EFEDEGAM written across the archive, behind the figure
 let reveal = null; // the archive building itself (scripts/space/reveal.js)
@@ -200,13 +204,18 @@ function updatePanel() {
   $("#drawerCode").textContent = d.special.code
     ? `CAJÓN ${d.special.code}`
     : drawerLabel(d).toUpperCase();
+  const plantKind = d.special?.kind === "plant";
   $("#drawerPanel > p").textContent = projectsKind
     ? open
       ? "Elige una carpeta para consultar su ficha."
       : "Abre el cajón para descubrir las carpetas del archivo."
-    : open
-      ? `«${d.special.name}» todavía no tiene su contenido en el archivo.`
-      : "Abre el cajón para ver qué guarda.";
+    : plantKind
+      ? open
+        ? "La hiedra se escapa. Vuelve a pulsar el cajón para dejarla crecer."
+        : "Abre el cajón: algo crece dentro."
+      : open
+        ? `«${d.special.name}» todavía no tiene su contenido en el archivo.`
+        : "Abre el cajón para ver qué guarda.";
   $("#toggleDrawer").textContent = open ? "Cerrar cajón" : "Abrir cajón";
   $("#toggleDrawer").setAttribute("aria-expanded", String(open));
   $("#projectChoices").hidden = !(projectsKind && open);
@@ -252,7 +261,7 @@ function backToExplore({ restore = true } = {}) {
   returnPose = null;
   canvas.focus({ preventScroll: true, focusVisible: false });
   announce(
-    "Explorando la sala. Arrastra para mirar y usa las flechas para caminar.",
+    "Explorando la sala. Arrastra para mirar; camina con el teclado o tocando el suelo.",
   );
 }
 function userInput() {
@@ -263,7 +272,8 @@ function userInput() {
   }
 }
 function resetCamera() {
-  if (!ready) return;
+  if (!ready || (ivy && ivy.stage >= 2)) return;
+  if (ivy?.stage === 1) ivy.retreat(performance.now());
   setSelected(null);
   returnPose = null;
   drawers.forEach((d) => isOpen(d) && toggleDrawer(d, false));
@@ -276,6 +286,17 @@ function setSelectedDrawer(open) {
   toggleDrawer(selected, open);
   updatePanel();
   const projectsKind = selected.special?.kind === "projects";
+  if (selected.special?.kind === "plant" && ivy) {
+    if (open) ivy.grow(performance.now(), reduced.matches);
+    else ivy.retreat(performance.now());
+    invalidate();
+    announce(
+      open
+        ? "Plantimanía: una hiedra pixelada sale del cajón y trepa por los cajones vecinos. Vuelve a pulsar el cajón para dejarla crecer."
+        : "Cajón cerrado. La hiedra vuelve a su sitio.",
+    );
+    return;
+  }
   announce(
     open
       ? projectsKind
@@ -283,6 +304,35 @@ function setSelectedDrawer(open) {
         : `Cajón «${selected.special.name}» abierto. Su contenido está en preparación.`
       : "Cajón cerrado.",
   );
+}
+
+/** PLANTIMANÍA, second press: the ivy takes the room, then the camera. */
+function invadeRoom() {
+  if (!ivy || ivy.stage !== 1) return;
+  ivy.invade(performance.now(), reduced.matches);
+  setSelected(null);
+  returnPose = null;
+  navigation.setEnabled(false);
+  // Step back to the middle of the room to watch it spread.
+  const position = new THREE.Vector3(0, 1.45, 4.6);
+  const target = new THREE.Quaternion().setFromRotationMatrix(
+    new THREE.Matrix4().lookAt(
+      position,
+      new THREE.Vector3(0, 1.55, 0),
+      camera.up,
+    ),
+  );
+  travelTo({ position, quaternion: target }, 3200);
+  announce(
+    "La hiedra invade la sala y lo cubre todo de verde. Después se abre Plantimanía.",
+  );
+}
+function leaveForPlantimania() {
+  if (new URLSearchParams(location.search).has("sinsalida")) {
+    ivyLeft = true; // tests: stay on the green
+    return;
+  }
+  location.assign(PLANTIMANIA_URL);
 }
 
 /* ------------------------------------------------------------------ */
@@ -323,12 +373,15 @@ function pick(clientX, clientY) {
 }
 function tap(clientX, clientY) {
   if (intro) return finishIntro();
+  if (ivy && ivy.stage >= 2) return; // the ivy has the room now
   const hit = pick(clientX, clientY);
   if (hit?.kind === "folder") openProject(hit.index);
   else if (hit?.kind === "drawer") {
     const d = hit.drawer;
     if (d.special) {
-      if (selected === d) setSelectedDrawer(!isOpen(d));
+      if (selected === d && d.special.kind === "plant" && ivy?.stage === 1)
+        invadeRoom();
+      else if (selected === d) setSelectedDrawer(!isOpen(d));
       else focusDrawer(d);
     } else {
       const open = toggleDrawer(d);
@@ -590,6 +643,7 @@ function renderFrame(time) {
   let drawerMoving = false;
   for (const d of drawers)
     if (d.active && stepDrawer(d, time, dt)) drawerMoving = true;
+  if (ivy && ivy.update(time)) drawerMoving = true;
   // The light switch: tubes going out (or coming on) one by one.
   if ((!reveal || reveal.finished) && lightsChanging)
     lightsChanging = updateLights(time);
@@ -626,6 +680,7 @@ function renderFrame(time) {
   camera.updateMatrixWorld();
   updateHotspots();
   renderer.render(scene, camera);
+  ivy?.render(renderer, camera); // the pixelated ivy, as a mosaic on top
   if (moving || journey || drawerMoving || intro) invalidate();
 }
 function resize() {
@@ -986,6 +1041,11 @@ async function start() {
     await addFolders();
     addTags();
     labelCount = addDrawerLabels(drawers);
+    const plantDrawer = drawers.find((d) => d.special?.kind === "plant");
+    if (plantDrawer)
+      ivy = createIvy(scene, plantDrawer, sharedUniforms, {
+        onGreen: leaveForPlantimania,
+      });
     figure = createFigure(FIGURE_AT);
     scene.add(figure.object, figure.shadow, figure.pool);
     wallTitle = createWallTitle();
@@ -1009,6 +1069,10 @@ async function start() {
         renderer,
         camera,
         drawers,
+        /** Freeze the PLANTIMANÍA ivy at `seconds` (debug only). */
+        ivyAt: (seconds) => ivy?.at(seconds),
+        /** Draw one complete frame now (debug only). */
+        frame: () => renderFrame(performance.now()),
         /** Freeze the entrance at `ms` (debug only), e.g. to inspect a frame. */
         introAt(ms) {
           if (!intro) return false;
@@ -1249,6 +1313,7 @@ export function getRoomState() {
     intro: Boolean(intro),
     reveal: revealState(),
     lights: lightsState(),
+    ivy: ivy ? { stage: ivy.stage, leaves: ivy.leaves, left: ivyLeft } : null,
     labels: labelCount,
     building: Boolean(reveal && !reveal.finished),
     figure: figure
