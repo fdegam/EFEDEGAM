@@ -34,6 +34,9 @@ Si el dispositivo no puede mostrar WebGL, las mismas fichas se pueden consultar 
 | `styles/noscript.css`               | Acceso a las fichas sin JavaScript                          |
 | `scripts/space/app.js`              | Renderizado, luz horneada, cajones, entrada y fichas        |
 | `scripts/space/navigation.js`       | Movimiento, gestos y límites de la sala                     |
+| `scripts/space/human-points.js`     | Nube de puntos de la figura, calculada en un _worker_       |
+| `scripts/space/glow.js`             | Halo de los paneles de luz del techo                        |
+| `scripts/space/sound.js`            | Sonido sintetizado: fluorescentes, cajones, hiedra, figura  |
 | `scripts/projects.js`               | Fuente editable de las fichas de ejemplo                    |
 | `scripts/drawers.js`                | Los seis cajones con nombre y su posición                   |
 | `assets/models/`                    | Modelo GLB, texturas de luz y configuración                 |
@@ -42,6 +45,8 @@ Si el dispositivo no puede mostrar WebGL, las mismas fichas se pueden consultar 
 | `vendor/three/`                     | Three.js local, licencia e integridad                       |
 | `tools/bake_lightmaps.py`           | Horneado Cycles y exportación del modelo desde Blender      |
 | `tools/encode_lightmaps.py`         | Limpieza y codificación WebP de las texturas de luz         |
+| `tools/encode_carpet.py`            | Foto de la moqueta como textura repetible                   |
+| `tools/split_carpet_textures.py`    | Saca del GLB las texturas de la moqueta (modelo más ligero) |
 | `tools/update_project_fallback.mjs` | Sincronización del contenido nativo con los proyectos       |
 | `tests/`                            | Comprobaciones de la entrada, acceso sin 3D e interacciones |
 

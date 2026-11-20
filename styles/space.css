@@ -154,14 +154,14 @@ button:active:not(:disabled) {
   inset: 0;
   z-index: 6;
   background: #090b0a;
-  color: #cfe9dc;
+  color: #d6e6fb;
 }
 .loading-grid {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(#cfe9dc14 1px, transparent 1px) 0 0 / 100% 33.33%,
-    linear-gradient(90deg, #cfe9dc14 1px, transparent 1px) 0 0 / 25% 100%;
+    linear-gradient(#d6e6fb14 1px, transparent 1px) 0 0 / 100% 33.33%,
+    linear-gradient(90deg, #d6e6fb14 1px, transparent 1px) 0 0 / 25% 100%;
 }
 .loading-label {
   position: absolute;
@@ -178,13 +178,13 @@ button:active:not(:disabled) {
   width: 180px;
   height: 2px;
   transform: translate(-50%, -50%);
-  background: #cfe9dc26;
+  background: #d6e6fb26;
   overflow: hidden;
 }
 .loading-bar > span {
   position: absolute;
   inset: 0;
-  background: #cfe9dc;
+  background: #d6e6fb;
   transform: scaleX(0);
   transform-origin: left;
   transition: transform 0.25s ease-out;
@@ -196,6 +196,11 @@ button:active:not(:disabled) {
   margin: 0;
   font: 300 clamp(44px, 8vw, 96px) / 1 var(--mono);
   letter-spacing: -0.04em;
+  /* Grows with the load: small at 0 %, its full height at 100 % (--p is
+     set by scripts/space/app.js; scaling avoids any layout work). */
+  transform: scale(calc(0.22 + 0.78 * var(--p, 0)));
+  transform-origin: 0 100%;
+  will-change: transform;
 }
 /* While loading, only the loader speaks: the room's controls and help
    appear once there is a room to explore. */
@@ -839,6 +844,22 @@ body.is-loading .keycap,
 body.is-intro .keycap {
   visibility: hidden;
 }
+/* Sound: a second key beside «Ctrl», a speaker that shows when muted. */
+.keycap-sound {
+  left: 96px;
+}
+.keycap-sound .keycap-label {
+  left: 10px;
+  top: 8px;
+  display: flex;
+}
+.keycap-sound .sound-off,
+.keycap-sound[aria-pressed="true"] .sound-waves {
+  display: none;
+}
+.keycap-sound[aria-pressed="true"] .sound-off {
+  display: inline;
+}
 @media (max-width: 760px) {
   .keycap {
     top: 68px;
@@ -846,10 +867,21 @@ body.is-intro .keycap {
     width: 44px;
     height: 42px;
   }
+  .keycap-sound {
+    left: 69px;
+  }
   .keycap-label {
     left: 7px;
     top: 5px;
     font-size: 11px;
+  }
+  .keycap-sound .keycap-label {
+    left: 7px;
+    top: 5px;
+  }
+  .keycap-sound svg {
+    width: 17px;
+    height: 14px;
   }
 }
 

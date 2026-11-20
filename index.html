@@ -15,6 +15,30 @@
       { "imports": { "three": "./vendor/three/build/three.module.min.js" } }
     </script>
     <script type="module" src="scripts/space/app.js"></script>
+    <!-- Fetched in parallel instead of one after another (scripts/space/app.js). -->
+    <link rel="modulepreload" href="vendor/three/build/three.module.min.js" />
+    <link rel="modulepreload" href="vendor/three/build/three.core.min.js" />
+    <link rel="modulepreload" href="vendor/three/addons/loaders/GLTFLoader.js" />
+    <link rel="modulepreload" href="vendor/three/addons/utils/BufferGeometryUtils.js" />
+    <link rel="modulepreload" href="vendor/three/addons/libs/meshopt_decoder.module.js" />
+    <link rel="modulepreload" href="scripts/space/reveal.js" />
+    <link rel="modulepreload" href="scripts/space/navigation.js" />
+    <link rel="modulepreload" href="scripts/space/folders.js" />
+    <link rel="modulepreload" href="scripts/space/ivy.js" />
+    <link rel="modulepreload" href="scripts/space/figure.js" />
+    <link rel="modulepreload" href="scripts/space/human-points.js" />
+    <link rel="modulepreload" href="scripts/space/labels.js" />
+    <link rel="modulepreload" href="scripts/space/glow.js" />
+    <link rel="modulepreload" href="scripts/space/sound.js" />
+    <link rel="modulepreload" href="scripts/projects.js" />
+    <link rel="modulepreload" href="scripts/drawers.js" />
+    <link rel="preload" href="assets/models/room.json" as="fetch" crossorigin />
+    <link rel="preload" href="assets/models/room.glb" as="fetch" crossorigin />
+    <link rel="preload" href="assets/models/lightmaps/room.webp" as="image" crossorigin />
+    <link rel="preload" href="assets/models/lightmaps/archive.webp" as="image" crossorigin />
+    <link rel="preload" href="assets/models/lightmaps/env.webp" as="image" crossorigin />
+    <link rel="preload" href="assets/models/textures/moqueta.webp" as="image" crossorigin />
+    <link rel="preload" href="assets/models/textures/moqueta-normal.webp" as="image" crossorigin />
   </head>
   <body class="is-loading">
     <header class="space-header">
@@ -33,6 +57,36 @@
         ><span class="keycap-label">Ctrl</span></span
       >
     </button>
+    <button
+      id="soundSwitch"
+      class="keycap keycap-sound js-only"
+      type="button"
+      aria-pressed="false"
+      aria-label="Silenciar el sonido"
+      title="Silenciar el sonido (M)"
+    >
+      <span class="keycap-face" aria-hidden="true"
+        ><span class="keycap-label"
+          ><svg viewBox="0 0 20 16" width="20" height="16">
+            <path d="M2 5.5h3.2L9.5 2v12L5.2 10.5H2z" fill="currentColor" />
+            <path
+              class="sound-waves"
+              d="M12.4 5.2a3.6 3.6 0 0 1 0 5.6M14.8 3a6.8 6.8 0 0 1 0 10"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.4"
+              stroke-linecap="round"
+            />
+            <path
+              class="sound-off"
+              d="M12.6 5.6l4.8 4.8M17.4 5.6l-4.8 4.8"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.4"
+              stroke-linecap="round"
+            /></svg></span
+      ></span>
+    </button>
     <main>
       <h1 class="sr-only">Explora la sala de EFEDEGAM</h1>
       <div id="sceneViewport" class="scene-viewport" aria-busy="false">
@@ -40,6 +94,8 @@
           id="scenePoster"
           class="scene-poster"
           src="assets/scene-preview/room.jpg"
+          fetchpriority="low"
+          decoding="async"
           alt="Sala frontal con techo luminoso, paredes claras, archivadores blancos y moqueta verde."
         />
         <canvas

@@ -8,7 +8,9 @@ import { specialDrawers } from "../drawers.js";
 import { buildFolders } from "./folders.js";
 import {
   BUILD,
+  BUILD_ZONES,
   applyReveal,
+  flickerPanels,
   createReveal,
   patchCeiling,
   revealState,
@@ -20,8 +22,33 @@ import {
 import { createIvy, PLANTIMANIA_URL } from "./ivy.js";
 import { createFigure } from "./figure.js";
 import { addDrawerLabels } from "./labels.js";
+import { createCeilingGlow } from "./glow.js";
+import { createSound } from "./sound.js";
 
 const $ = (selector) => document.querySelector(selector);
+
+/*
+ * Loading starts as soon as the module runs: the room's configuration is
+ * requested at once (index.html preloads it and the heavy files), and the
+ * person of light is computed in a worker while the room downloads.
+ */
+const configRequest = fetch("assets/models/room.json");
+const sound = createSound();
+const figurePoints = new Promise((resolve) => {
+  try {
+    const worker = new Worker(new URL("./points-worker.js", import.meta.url), {
+      type: "module",
+    });
+    const done = (data) => {
+      worker.terminate();
+      resolve(data);
+    };
+    worker.onmessage = ({ data }) => done(data);
+    worker.onerror = () => done(null); // computed on the main thread instead
+  } catch {
+    resolve(null);
+  }
+});
 const viewport = $("#sceneViewport"),
   canvas = $("#roomCanvas"),
   status = $("#sceneStatus");
@@ -133,7 +160,10 @@ function stepDrawer(d, time, dt) {
     v += a * h;
     x += v * h;
     // The frame and the slide stops: soft bumpers, not walls.
-    if (x < 0) [x, v] = [0, v < 0 ? -v * 0.2 : v];
+    if (x < 0) {
+      if (v < -0.05) d.knock = Math.max(d.knock ?? 0, -v);
+      [x, v] = [0, v < 0 ? -v * 0.2 : v];
+    }
     if (x > max) [x, v] = [max, v > 0 ? -v * 0.2 : v];
   }
   d.v = v;
@@ -143,6 +173,8 @@ function stepDrawer(d, time, dt) {
     d.v = d.acc = 0;
     d.active = false;
   }
+  // Closing: the front meets the frame (bumper above, or settling at 0).
+  if (d.target === 0 && x === 0 && d.offset > 0 && !d.knock) d.knock = Math.abs(v) + 0.1;
   if (x !== d.offset) setOffset(d, x);
   return d.active;
 }
@@ -451,6 +483,16 @@ function startIntro() {
   const centre = projectDrawer.node.getWorldPosition(new THREE.Vector3());
   centre.z += 0.05; // the wave is born at the front of drawer 023
   reveal = createReveal(scene, revealMeshes(), centre);
+  if (!reduced.matches) {
+    sound.build(BUILD_ZONES.wave[1]);
+    // Each zone's twelve tubes start with the panels' own flicker.
+    sound.tubes(
+      BUILD_ZONES.zones.flatMap((z) =>
+        Array.from({ length: 12 }, () => z + Math.random() * BUILD_ZONES.flicker),
+      ),
+      true,
+    );
+  }
   document.body.classList.add("is-intro");
   $("#introTitle").hidden = false;
   $("#skipIntro").hidden = false;
@@ -640,9 +682,17 @@ function renderFrame(time) {
     );
     if (t === 1) journey = null;
   }
-  let drawerMoving = false;
-  for (const d of drawers)
+  let drawerMoving = false,
+    drawerSpeed = 0,
+    closing = false;
+  for (const d of drawers) {
     if (d.active && stepDrawer(d, time, dt)) drawerMoving = true;
+    if (d.active) drawerSpeed = Math.max(drawerSpeed, Math.abs(d.v));
+    if (d.knock) {
+      closing = !intro; // the entrance's jolts stay silent
+      d.knock = 0;
+    }
+  }
   if (ivy && ivy.update(time)) drawerMoving = true;
   // The light switch: tubes going out (or coming on) one by one.
   if ((!reveal || reveal.finished) && lightsChanging)
@@ -676,6 +726,16 @@ function renderFrame(time) {
     if (folders.group.visible && folders.update(dt, projectDrawer.acc))
       drawerMoving = true;
   }
+  sound.setPower(revealState().power);
+  sound.update(dt, {
+    drawerSpeed: intro ? 0 : drawerSpeed,
+    closing,
+    ivyRate: !ivy || !ivy.stage ? 0 : ivy.stage === 1 ? 0.35 : 1,
+    figureNear: figure
+      ? Math.max(0, 1 - (camera.position.distanceTo(FIGURE_AT) - 0.6) / 5)
+      : 0,
+    stir: figure?.stir ?? 0,
+  });
   room.updateMatrixWorld(true);
   camera.updateMatrixWorld();
   updateHotspots();
@@ -701,12 +761,13 @@ function resize() {
   camera.updateProjectionMatrix();
   invalidate();
 }
-async function addFolders() {
+/** Built while the room downloads; attached to drawer 023 once it exists. */
+async function prepareFolders() {
   // Labels are drawn with the page's own typeface.
   await document.fonts?.load('500 30px "DM Mono"').catch(() => {});
-  folders = buildFolders(projects);
-  folders.group.visible = false;
-  projectDrawer.node.add(folders.group);
+  const built = buildFolders(projects);
+  built.group.visible = false;
+  return built;
 }
 function addTags() {
   for (const d of drawers) {
@@ -756,18 +817,33 @@ function showError(message) {
   announce(message);
 }
 
-/** Technical loader: one percentage and a hairline bar. */
-let shownProgress = 0;
+/**
+ * Technical loader: one percentage and a hairline bar. The number counts
+ * smoothly towards the real progress and grows with it (styles/space.css).
+ */
+let targetProgress = 0,
+  shownProgress = 0,
+  progressFrame = 0,
+  progressTime = 0;
 function setProgress(share) {
   // Servers may announce the compressed size while counting decompressed
   // bytes: never show more than 100 %.
-  const value = Math.max(
-    shownProgress,
-    Math.round(Math.min(1, Math.max(0, share)) * 100),
-  );
-  shownProgress = value;
+  targetProgress = Math.max(targetProgress, Math.min(1, Math.max(0, share)));
+  if (!progressFrame) progressFrame = requestAnimationFrame(tickProgress);
+}
+function tickProgress(time) {
+  const dt = Math.min(0.1, (time - (progressTime || time)) / 1000);
+  progressTime = time;
+  // Eases in (about a quarter of a second behind), never overshoots.
+  shownProgress += (targetProgress - shownProgress) * (1 - Math.exp(-dt * 9));
+  if (targetProgress - shownProgress < 0.002) shownProgress = targetProgress;
+  const value = Math.round(shownProgress * 100);
   $("#loadingText").textContent = `${String(value).padStart(2, "0")} %`;
-  $("#loadingBar").style.transform = `scaleX(${value / 100})`;
+  $("#loadingText").style.setProperty("--p", shownProgress.toFixed(4));
+  $("#loadingBar").style.transform = `scaleX(${shownProgress})`;
+  progressFrame =
+    shownProgress < targetProgress ? requestAnimationFrame(tickProgress) : 0;
+  if (!progressFrame) progressTime = 0;
 }
 
 /* ------------------------------------------------------------------ */
@@ -853,17 +929,25 @@ function withLightmap(material, lightmap, cache) {
  * near-black procedural texture of the .blend. It is sized in metres: the
  * scale comes from the floor's own UVs, so it does not depend on the export.
  */
-async function applyCarpet() {
+/** The photo and the pile's relief (kept out of the GLB to make it lighter). */
+function loadCarpet() {
   const info = config.carpet;
-  if (!info) return;
+  if (!info) return null;
+  const loader = new THREE.TextureLoader();
+  return Promise.all([
+    loader.loadAsync(`assets/models/${info.file}`),
+    info.normal ? loader.loadAsync(`assets/models/${info.normal.file}`) : null,
+  ]);
+}
+function applyCarpet(maps) {
+  const info = config.carpet;
+  if (!info || !maps) return;
+  const [texture, normalMap] = maps;
   let floor = null;
   room.traverse((o) => {
     if (o.isMesh && o.material.name === info.material) floor = o;
   });
   if (!floor) return;
-  const texture = await new THREE.TextureLoader().loadAsync(
-    `assets/models/${info.file}`,
-  );
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
@@ -883,6 +967,16 @@ async function applyCarpet() {
   texture.repeat.setScalar(1 / (uvPerMetre * info.repeatMetres));
   const m = floor.material;
   m.map = texture; // its colour is tinted by materialTuning (room.json)
+  if (normalMap) {
+    // As GLTFLoader would set it: glTF orientation, linear data, and the
+    // sign it already gave normalScale.y for meshes without tangents.
+    normalMap.flipY = false;
+    normalMap.wrapS = normalMap.wrapT = THREE.RepeatWrapping;
+    normalMap.anisotropy = texture.anisotropy;
+    m.normalMap = normalMap;
+    const scale = info.normal.scale ?? 1;
+    m.normalScale.set(scale, Math.sign(m.normalScale.y || 1) * scale);
+  }
   m.needsUpdate = true;
 }
 function batchDrawers(lightmap) {
@@ -925,7 +1019,9 @@ function batchDrawers(lightmap) {
     geometries.forEach((g) => g.dispose());
     const m = material.clone();
     m.lightMap = lightmap.texture;
-    m.lightMapIntensity = lightmap.intensity;
+    m.lightMapIntensity =
+      lightmap.intensity *
+      (config.materialTuning?.[material.name]?.lightMapScale ?? 1);
     patchReflections(m, (shader) => {
       shader.uniforms.drawerOffsets = { value: offsetTexture };
       shader.vertexShader = shader.vertexShader
@@ -952,7 +1048,7 @@ function batchDrawers(lightmap) {
 async function start() {
   viewport.setAttribute("aria-busy", "true");
   try {
-    const response = await fetch("assets/models/room.json");
+    const response = await configRequest;
     if (!response.ok) throw new Error("Room configuration unavailable");
     config = await response.json();
     renderer = new THREE.WebGLRenderer({
@@ -976,7 +1072,9 @@ async function start() {
     );
     camera.position.fromArray(config.camera.position);
     camera.quaternion.fromArray(config.camera.quaternion);
-    const [gltf, lightmaps] = await Promise.all([
+    // Every download runs at the same time; the folders are drawn meanwhile.
+    const folderBuild = prepareFolders();
+    const [gltf, lightmaps, environment, carpet] = await Promise.all([
       new GLTFLoader()
         .setMeshoptDecoder(MeshoptDecoder)
         .loadAsync("assets/models/room.glb", (event) => {
@@ -984,8 +1082,9 @@ async function start() {
             setProgress(Math.min(1, event.loaded / event.total) * 0.9);
         }),
       loadLightmaps(),
+      loadEnvironment(),
+      loadCarpet(),
     ]);
-    const environment = await loadEnvironment();
     if (environment) {
       scene.environment = environment.texture;
       scene.environmentIntensity = environment.intensity;
@@ -993,6 +1092,7 @@ async function start() {
     room = gltf.scene;
     scene.add(room);
     const cache = new Map();
+    const ceilingLights = [];
     room.traverse((object) => {
       if (!object.isMesh) return;
       // Meshes may be unnamed after compression; their nodes keep the name.
@@ -1005,10 +1105,15 @@ async function start() {
           lightmaps.archive,
           cache,
         );
-      else if (/LUZ_ZONA/.test(object.material.name))
+      else if (/LUZ_ZONA/.test(object.material.name)) {
+        // Brighter than the white walls, so the panels read as the source.
+        object.material.emissiveIntensity = config.panelEmission ?? 1;
         patchCeiling(object.material);
+        ceilingLights.push(object);
+      }
     });
-    await applyCarpet();
+    createCeilingGlow(scene, ceilingLights);
+    applyCarpet(carpet);
     const specials = new Map(specialDrawers.map((s) => [`CAJON_${s.id}`, s]));
     room.traverse((object) => {
       if (!object.name.startsWith("CAJON_")) return;
@@ -1038,7 +1143,8 @@ async function start() {
     projectDrawer = drawerById.get(config.projectDrawer.slice(6));
     if (!projectDrawer) throw new Error("Project drawer unavailable");
     batchDrawers(lightmaps.archive);
-    await addFolders();
+    folders = await folderBuild;
+    projectDrawer.node.add(folders.group);
     addTags();
     labelCount = addDrawerLabels(drawers);
     const plantDrawer = drawers.find((d) => d.special?.kind === "plant");
@@ -1046,7 +1152,7 @@ async function start() {
       ivy = createIvy(scene, plantDrawer, sharedUniforms, {
         onGreen: leaveForPlantimania,
       });
-    figure = createFigure(FIGURE_AT);
+    figure = createFigure(FIGURE_AT, (await figurePoints) ?? undefined);
     scene.add(figure.object, figure.shadow, figure.pool);
     wallTitle = createWallTitle();
     scene.add(wallTitle);
@@ -1062,6 +1168,14 @@ async function start() {
     setProgress(0.96);
     await renderer.compileAsync(scene, camera);
     setProgress(1);
+    // Let the number reach 100 % (and its full size) before the room shows.
+    await new Promise((resolve) => {
+      const since = performance.now();
+      (function wait() {
+        if (shownProgress >= 1 || performance.now() - since > 600) resolve();
+        else requestAnimationFrame(wait);
+      })();
+    });
     if (new URLSearchParams(location.search).has("debug"))
       window.__efedegam = {
         THREE,
@@ -1071,6 +1185,8 @@ async function start() {
         drawers,
         /** Freeze the PLANTIMANÍA ivy at `seconds` (debug only). */
         ivyAt: (seconds) => ivy?.at(seconds),
+        /** Make a tube fail now, e.g. `flicker([0])` (debug only). */
+        flicker: (panels) => flickerTube(panels),
         /** Draw one complete frame now (debug only). */
         frame: () => renderFrame(performance.now()),
         /** Freeze the entrance at `ms` (debug only), e.g. to inspect a frame. */
@@ -1191,6 +1307,7 @@ let lightsChanging = false,
   keyDownAt = 0,
   ctrlArmed = false;
 function pressKey(down) {
+  sound.keyClick(down);
   if (down) {
     keyDownAt = performance.now();
     lightSwitch.classList.add("is-down");
@@ -1206,7 +1323,7 @@ function pressKey(down) {
 function toggleLights() {
   if (!ready || intro || failed) return;
   const on = !lightsState().on;
-  switchLights(on, performance.now(), reduced.matches);
+  sound.tubes(switchLights(on, performance.now(), reduced.matches), on);
   lightsChanging = true;
   lightSwitch.setAttribute("aria-pressed", String(!on));
   document.body.classList.toggle("lights-off", !on);
@@ -1233,6 +1350,84 @@ lightSwitch.addEventListener("keyup", (event) => {
   if (event.code === "Space" || event.code === "Enter") pressKey(false);
 });
 lightSwitch.addEventListener("click", toggleLights);
+
+/*
+ * Every 10 s a random tube fails for a moment (and the room dips with it).
+ * Only with the lights on, in a visible tab, outside the entrance and the
+ * ivy's invasion, and never with reduced motion.
+ */
+const FLICKER_EVERY = 10000;
+const flickerOff = new URLSearchParams(location.search).has("sinparpadeo");
+function flickerTube(panels = null) {
+  if (!ready || failed || !lightsState().on) return null;
+  const event = flickerPanels(performance.now(), panels);
+  lightsChanging = true;
+  sound.flicker(event);
+  invalidate();
+  return event.panels;
+}
+setInterval(() => {
+  if (
+    flickerOff ||
+    reduced.matches ||
+    document.hidden ||
+    intro ||
+    lightsChanging ||
+    (ivy && ivy.stage >= 2)
+  )
+    return;
+  flickerTube();
+}, FLICKER_EVERY);
+
+/* Sound: a second key; «M» toggles it too. */
+const soundSwitch = $("#soundSwitch");
+function showSound() {
+  const muted = sound.muted;
+  soundSwitch.setAttribute("aria-pressed", String(muted));
+  const label = muted ? "Activar el sonido" : "Silenciar el sonido";
+  soundSwitch.setAttribute("aria-label", label);
+  soundSwitch.title = `${label} (M)`;
+}
+function toggleSound() {
+  sound.setMuted(!sound.muted);
+  showSound();
+  announce(sound.muted ? "Sonido silenciado." : "Sonido activado.");
+}
+function pressSoundKey(down) {
+  if (down) {
+    soundSwitch.classList.add("is-down");
+    soundSwitch.dataset.downAt = String(performance.now());
+    sound.keyClick(true);
+    return;
+  }
+  const held = performance.now() - Number(soundSwitch.dataset.downAt || 0);
+  setTimeout(
+    () => soundSwitch.classList.remove("is-down"),
+    Math.max(0, 70 - held),
+  );
+  sound.keyClick(false);
+}
+showSound();
+soundSwitch.addEventListener("pointerdown", () => pressSoundKey(true));
+for (const name of ["pointerup", "pointerleave", "pointercancel"])
+  soundSwitch.addEventListener(name, () => {
+    if (soundSwitch.classList.contains("is-down")) pressSoundKey(false);
+  });
+soundSwitch.addEventListener("click", toggleSound);
+addEventListener("keydown", (event) => {
+  if (
+    event.code !== "KeyM" ||
+    event.repeat ||
+    event.ctrlKey ||
+    event.metaKey ||
+    event.altKey ||
+    event.target.closest?.("input, textarea, [contenteditable]")
+  )
+    return;
+  pressSoundKey(true);
+  toggleSound();
+  pressSoundKey(false);
+});
 addEventListener("keydown", (event) => {
   if (event.key === "Control") {
     if (!event.repeat) {
@@ -1313,6 +1508,11 @@ export function getRoomState() {
     intro: Boolean(intro),
     reveal: revealState(),
     lights: lightsState(),
+    sound: {
+      muted: sound.muted,
+      created: sound.created,
+      running: sound.running,
+    },
     ivy: ivy ? { stage: ivy.stage, leaves: ivy.leaves, left: ivyLeft } : null,
     labels: labelCount,
     building: Boolean(reveal && !reveal.finished),

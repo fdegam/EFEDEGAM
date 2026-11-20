@@ -62,7 +62,7 @@ tile = Image.fromarray((enc * 255 + 0.5).astype(np.uint8)).resize((SIZE, SIZE), 
 out = root / 'assets/models/textures'
 out.mkdir(parents=True, exist_ok=True)
 path = out / 'moqueta.webp'
-tile.save(path, 'WEBP', quality=82, method=6)  # Pillow writes no EXIF unless asked
+tile.save(path, 'WEBP', quality=72, method=6)  # Pillow writes no EXIF unless asked
 print(path.name, path.stat().st_size, 'bytes', 'mean sRGB', np.asarray(tile).reshape(-1, 3).mean(0).round(1))
 
 preview = Image.new('RGB', (SIZE * 3 // 2, SIZE * 3 // 2))

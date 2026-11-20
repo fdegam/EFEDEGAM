@@ -17,7 +17,7 @@ La iluminación no se imita con focos genéricos de Three.js. Se calcula en Blen
 Calibración frente al render de Cycles del encuadre de referencia (`assets/scene-preview/room.jpg`), guardada en `assets/models/room.json`:
 
 - `exposure: 1.3`.
-- Moqueta: el color es la foto de terciopelo verde del propietario (Google Drive › `Recursos`, la misma que usaba V20), preparada con `tools/encode_carpet.py`: recorte, eliminación de su propia iluminación, repetición sin costuras y repetida cada 0,9 m. El tinte frío de V20 y el brillo se calibraron fila a fila frente al render Cycles: `tint [0.76, 1, 1.65]`, `lightMapScale 0.128`, `specularIntensityScale 1.5`. La textura de 512 px del `.blend` era casi negra (su verde lo ponía el _sheen_ de Cycles); la luz horneada no depende de ese color, así que no hubo que volver a hornear.
+- Moqueta: el relieve del pelo es el mapa normal del `.blend`, sacado del GLB a `textures/moqueta-normal.webp` con `tools/split_carpet_textures.py` (el GLB llevaba dentro 765 KB de PNG, incluido el color que la foto sustituye). El color es la foto de terciopelo verde del propietario (Google Drive › `Recursos`, la misma que usaba V20), preparada con `tools/encode_carpet.py`: recorte, eliminación de su propia iluminación, repetición sin costuras y repetida cada 0,9 m. El tinte frío de V20 y el brillo se calibraron fila a fila frente al render Cycles: `tint [0.76, 1, 1.65]`, `lightMapScale 0.128`, `specularIntensityScale 1.5`. La textura de 512 px del `.blend` era casi negra (su verde lo ponía el _sheen_ de Cycles); la luz horneada no depende de ese color, así que no hubo que volver a hornear.
 - `Juntas_sombra` (`emissive 0.12`): las rendijas de 8 mm entre paneles de pared son más finas que un píxel de la textura de luz.
 
 Diferencias conocidas: los tiradores, de unos 3 px en el atlas, quedan ligeramente más suaves que en Cycles.
@@ -26,7 +26,7 @@ Diferencias conocidas: los tiradores, de unos 3 px en el atlas, quedan ligeramen
 
 ### Entrada (unos 4,6 s)
 
-**00 · Construcción** (unos 3,8 s, `scripts/space/reveal.js`), inspirada en la referencia del propietario (bricelab.dev): carga técnica con retícula, porcentaje y barra (la interfaz de la sala no aparece hasta que hay sala); la sala a oscuras dibujada solo en líneas; una onda de luz ámbar cálido nace en el cajón 023 y **recorre las aristas** de los objetos: un pulso estrecho corre por los cantos en el frente de la onda, por delante solo queda un plano apenas visible y por detrás aparecen las superficies (archivo, suelo con una retícula escaneada, paredes y techo); después los paneles se encienden por zonas, Z1→Z3, con parpadeo de fluorescente. Las líneas desaparecen al terminar, sin coste en reposo.
+**00 · Construcción** (unos 3,8 s, `scripts/space/reveal.js`), inspirada en la referencia del propietario (bricelab.dev): carga técnica con retícula, porcentaje y barra en blanco frío; el número cuenta con suavidad y crece con la carga, de pequeño al 0 % a su tamaño completo al 100 % (la interfaz de la sala no aparece hasta que hay sala); la sala a oscuras dibujada solo en líneas; una onda de luz **blanca fría, tirando a azul** (`#bcd8ff`), nace en el cajón 023 y **recorre las aristas** de los objetos: un pulso estrecho corre por los cantos en el frente de la onda, por delante solo queda un plano apenas visible y por detrás aparecen las superficies (archivo, suelo con una retícula escaneada, paredes y techo); después los paneles se encienden por zonas, Z1→Z3, con parpadeo de fluorescente. Las líneas aparecen y se desvanecen con fundidos suaves y desaparecen al terminar, sin coste en reposo.
 
 **Figura de luz** (`scripts/space/figure.js`): una persona de pie en el centro de la sala (z = 3,35 m), hecha de unos 22.000 puntos luminosos con un halo suave, según la imagen de referencia del propietario. Se ensambla desde el polvo con la sala aún a oscuras, gira sobre sí misma, se remueve como humo al pasar el cursor (los puntos siguen su movimiento, giran en remolinos y vuelven poco a poco, sin abrir huecos) y se dispersa cuando la cámara la atraviesa (la entrada la atraviesa al acelerar; también se puede cruzar caminando). Proyecta una sombra suave en el suelo, generada a partir de sus propios puntos, porque la sala no tiene luces en tiempo real. Está preparada para sustituirla por un escaneo del propietario: `createFigure(posición, { points, layers })`. El título «EFEDEGAM» aparece escrito sobre el archivo, detrás de la figura.
 
@@ -68,6 +68,25 @@ En la esquina superior izquierda hay una tecla de teclado beige con «Ctrl», co
 
 Los 36 paneles del techo se apagan de forma descoordinada: cada uno recibe un retraso y un parpadeo propios, distintos en cada pulsación (`switchLights` / `updateLights` en `scripts/space/reveal.js`). La luz horneada de la sala sigue a los tubos que quedan encendidos hasta quedar en penumbra (3 %). A oscuras, la figura de puntos brilla con un halo fuerte e ilumina la moqueta a sus pies; la cabecera también se oscurece. Con movimiento reducido el cambio es instantáneo.
 
+### Luz de los paneles
+
+Los paneles emiten algo más que las paredes (`panelEmission` 1,3 en `room.json`) y cada uno tiene un **halo** (`scripts/space/glow.js`): un resplandor suave pegado a los bordes del panel que se derrama sobre la perfilería, como en la foto de referencia del propietario (sin destellos redondos). Es una capa aditiva instanciada (36 paneles, una llamada de dibujo), sin postproceso, y siguen exactamente el estado de cada tubo: construcción por zonas, tecla Ctrl y parpadeos. Los blancos (lacado de los archivadores y paredes paneladas) tienen un 12 % más de luz y la perfilería un 8 % (`materialTuning`).
+
+**Parpadeo**: cada 10 s un tubo al azar (a veces dos) falla un instante, durante unos 0,9 s, y la luz de la sala baja ligeramente con él. Solo con las luces encendidas, la pestaña visible y fuera de la entrada y de la invasión de la hiedra; nunca con movimiento reducido. `?sinparpadeo` lo desactiva para revisar.
+
+### Sonido
+
+Todo el sonido se sintetiza en el navegador con Web Audio (`scripts/space/sound.js`): no hay archivos de audio ni descargas.
+
+- **Fluorescentes**: zumbido constante de 100 Hz con armónicos (red de 50 Hz) y un siseo suave; baja con los tubos que se apagan.
+- **Tubos**: chasquidos de cebador y zumbido al encenderse por zonas en la construcción, al pulsar Ctrl (con el clic de la tecla) y en cada parpadeo.
+- **Cajones**: rodadura de guías de bolas que sigue a la velocidad del cajón y un golpe amortiguado al cerrar.
+- **Construcción**: un barrido frío que acompaña a la onda de luz.
+- **Hiedra**: crujido de hojas, más denso cuando invade la sala.
+- **Figura de luz**: partículas suspendidas, un brillo aéreo que crece al acercarse y al removerla con el cursor.
+
+Los navegadores no permiten sonar antes de un gesto del visitante: el sonido empieza con el primer clic, toque o tecla (la construcción solo suena si el navegador ya lo permite, por ejemplo en visitas repetidas). Junto a «Ctrl» hay una segunda tecla con un altavoz para silenciarlo (también la tecla M); la elección se recuerda en el navegador.
+
 ### Navegación
 
 Arrastra para mirar. En el ordenador, WASD o las flechas del teclado para caminar; en el móvil, pellizca para avanzar o retroceder. No hay flechas en pantalla. La rueda o la pinza avanzan y retroceden. Una pulsación en el suelo lleva a ese punto. El desplazamiento se limita a un rectángulo de suelo libre delante de los archivadores. «Vista inicial» vuelve al encuadre de referencia y cierra todos los cajones. Escape cierra la ficha y después devuelve a la exploración.
@@ -76,7 +95,8 @@ Si WebGL no arranca o se interrumpe, aparecen la imagen estática y las seis fic
 
 ## Rendimiento
 
-- GLB de 2,3 MB (geometría comprimida con meshopt, sin cuantizar) y texturas de luz de unos 0,4 MB en total.
+- Unos 0,9 MB de descarga con la compresión del servidor: GLB de 1,6 MB (185 KB comprimido; geometría con meshopt, sin cuantizar y sin imágenes), texturas de luz de unos 0,2 MB, moqueta de 0,37 MB (foto y relieve) y Three.js.
+- Carga en paralelo: `index.html` anuncia al navegador todos los módulos y recursos (`modulepreload` / `preload`), de modo que se descargan a la vez en lugar de uno tras otro. Mientras llegan, la figura de puntos se calcula en un _worker_ (`scripts/space/points-worker.js`, con `human-points.js`; si el navegador no puede, se calcula como antes) y las carpetas del cajón 023 se dibujan. La imagen de respaldo se pide con prioridad baja.
 - 13 llamadas de dibujo (18 con el cajón 023 abierto: las 32 carpetas son instancias) y unos 32.000 triángulos. Los 156 cajones se dibujan en una malla por material. Cada vértice sabe a qué cajón pertenece y una pequeña textura guarda cuánto sobresale cada uno, de modo que se mueven por separado sin perder el agrupamiento.
 - Render bajo demanda: sin movimiento no se dibuja. Resolución de píxel limitada a 1,7.
 
@@ -90,11 +110,13 @@ blender --background --factory-startup --disable-autoexec /ruta/privada/Espacio_
 python3 tools/encode_lightmaps.py /ruta/temporal
 python3 tools/encode_carpet.py /ruta/a/la/foto_de_moqueta.jpg
 npx --yes gltfpack@0.24.0 -i assets/models/room.glb -o assets/models/room.glb -cc -noq -kn -km -kv
+python3 tools/split_carpet_textures.py
 ```
 
 1. `bake_lightmaps.py` crea las UV de luz y hornea con Cycles (96 muestras: unos 45 min con 4 núcleos de CPU). Después renderiza la panorámica y escribe `room.glb` y `room.json` sin guardar el `.blend`. Las caras que nadie puede ver se encogen en el atlas. Los frentes se proyectan en alzado, una celda por cajón.
 2. `encode_lightmaps.py` (Python con numpy y Pillow) elimina el ruido residual sin mezclar texturas vacías y rellena los márgenes. Después escribe los WebP en sRGB con un ligero tramado.
 3. `gltfpack` comprime la geometría. `-kv` es imprescindible: conserva las UV de luz, que ningún material del GLB referencia.
+4. `split_carpet_textures.py` saca del GLB las texturas de la moqueta: el relieve pasa a WebP y su intensidad a `room.json` › `carpet.normal`.
 
 `assets/scene-preview/room.jpg` es un render Cycles independiente del encuadre de referencia (Blender 4.3.2, 64 muestras, 1280 × 720). Sirve como imagen de respaldo y como referencia para la calibración.
 

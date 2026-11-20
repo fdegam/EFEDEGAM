@@ -53,8 +53,8 @@ class SpaceChecks(unittest.TestCase):
         self.assertEqual(self.external, [], 'Unexpected external requests')
         self.assertEqual(self.failed, [], 'Missing resources')
 
-    def load(self):
-        self.page.goto(self.url + '/', wait_until='networkidle')
+    def load(self, query=''):
+        self.page.goto(self.url + '/' + query, wait_until='networkidle')
         expect(self.page.locator('#sceneViewport')).to_have_class(re.compile('is-ready'), timeout=45000)
 
     def state(self):
@@ -256,6 +256,32 @@ class SpaceChecks(unittest.TestCase):
         self.page.keyboard.press('Control')
         self.wait_state('s.lights.on && s.lights.power === 1')
         expect(key).to_have_attribute('aria-pressed', 'false')
+
+    def test_sound_key_mutes_and_remembers(self):
+        self.load()
+        key = self.page.locator('#soundSwitch')
+        expect(key).to_be_visible()
+        expect(key).to_have_attribute('aria-pressed', 'false')
+        self.assertFalse(self.state()['sound']['muted'])
+        key.click()
+        expect(key).to_have_attribute('aria-pressed', 'true')
+        self.assertTrue(self.state()['sound']['muted'])
+        # The choice survives a reload; «M» switches it back on.
+        self.load()
+        expect(self.page.locator('#soundSwitch')).to_have_attribute('aria-pressed', 'true')
+        self.page.locator('#roomCanvas').focus()
+        self.page.keyboard.press('m')
+        expect(self.page.locator('#soundSwitch')).to_have_attribute('aria-pressed', 'false')
+        self.assertFalse(self.state()['sound']['muted'])
+
+    def test_a_tube_flickers_and_the_room_settles(self):
+        self.page.emulate_media(reduced_motion='no-preference')
+        self.load('?debug&sinintro&sinparpadeo')
+        panels = self.page.evaluate('window.__efedegam.flicker([3])')
+        self.assertEqual(panels, [3])
+        self.assertTrue(self.state()['lights']['flickering'])
+        self.wait_state('!s.lights.flickering && s.lights.power === 1')
+        self.assertTrue(self.state()['lights']['on'])
 
     def test_plantimania_ivy_takes_the_room(self):
         self.page.goto(self.url + '/?sinsalida', wait_until='networkidle')

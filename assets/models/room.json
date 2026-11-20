@@ -111,7 +111,11 @@
     "material": "Moqueta_verde_aterciopelada",
     "file": "textures/moqueta.webp",
     "repeatMetres": 0.9,
-    "source": "Owner photo (Drive \u203a Recursos), same as V20 carpet; tools/encode_carpet.py"
+    "source": "Owner photo (Drive \u203a Recursos), same as V20 carpet; tools/encode_carpet.py",
+    "normal": {
+      "file": "textures/moqueta-normal.webp",
+      "scale": 0.349999994
+    }
   },
   "materialTuning": {
     "Moqueta_verde_aterciopelada": {
@@ -130,6 +134,15 @@
         0.12,
         0.12
       ]
+    },
+    "Lacado_blanco": {
+      "lightMapScale": 1.12
+    },
+    "Pared_panelada": {
+      "lightMapScale": 1.12
+    },
+    "Perfileria_techo": {
+      "lightMapScale": 1.08
     }
   },
   "bake": {
@@ -138,5 +151,6 @@
     "pass": "Diffuse direct + indirect, no colour",
     "toneMapping": "AgX"
   },
-  "source": "Owner-provided room; exported without scripts, custom properties, source paths, cameras or lights."
+  "source": "Owner-provided room; exported without scripts, custom properties, source paths, cameras or lights.",
+  "panelEmission": 1.3
 }

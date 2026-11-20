@@ -17,7 +17,9 @@ const T = {
   flicker: 380,
   fade: [3250, 3800],
 };
-const GLOW = new THREE.Color("#ffa516"); // warm amber yellow (AgX desaturates brights)
+/** When each construction zone's tubes come on (ms), for the sound. */
+export const BUILD_ZONES = { wave: T.wave, zones: T.zones, flicker: T.flicker };
+const GLOW = new THREE.Color("#bcd8ff"); // cold white, leaning blue (bricelab.dev)
 const FULL = 1e4; // radius once built: no fragment is ever discarded
 
 export const sharedUniforms = {
@@ -25,7 +27,7 @@ export const sharedUniforms = {
   uRevealRadius: { value: FULL },
   uRevealBand: { value: 0.12 },
   uRevealNoise: { value: 0.22 },
-  // Surfaces only get a faint warm hint: the light runs along the edges.
+  // Surfaces only get a faint cold hint: the light runs along the edges.
   uRevealGlow: { value: GLOW.clone().multiplyScalar(0.18) },
   uRevealPower: { value: 1 },
   uLineOpacity: { value: 0 },
@@ -33,6 +35,8 @@ export const sharedUniforms = {
 };
 const U = sharedUniforms;
 const zoneUniforms = [1, 2, 3].map(() => ({ value: 1 }));
+/** Construction zones Z1–Z3 (two rows of panels each), for other shaders. */
+export const zoneLight = zoneUniforms;
 
 /*
  * Light switch (the «Ctrl» key). Each of the 36 ceiling panels (6 × 6,
@@ -47,11 +51,24 @@ const L = {
   uLightsOn: { value: 1 },
   uPanelDelay: { value: new Array(PANELS).fill(0) },
   uPanelVary: { value: new Array(PANELS).fill(0.5) },
+  // A random tube failing for a moment (every 10 s, scripts/space/app.js).
+  uFlickerA: { value: -1 },
+  uFlickerB: { value: -1 },
+  uFlickerTime: { value: 1e6 },
 };
+export const lightUniforms = L;
+const flicker = { start: -1e6, panels: [] };
+// Brightness of a failing tube over FLICKER_MS: dips, a dead stretch, back.
+const FLICKER_STEPS = [1, 0.15, 0.95, 1, 0.3, 0.05, 0.85, 0.2, 1, 0.6, 1, 1];
+const FLICKER_MS = 900;
 const lights = { on: true, start: -1e6 };
 const DARK = 0.03; // with every tube out, the architecture is barely there
 const ON_STEPS = [0, 0.9, 0.08, 0.55, 0.15, 1, 0.7, 1];
 const OFF_STEPS = [1, 0.25, 0.9, 0.05, 0.6, 0, 0.3, 0];
+function flickerValue(i, t) {
+  if (!flicker.panels.includes(i) || t < 0 || t >= FLICKER_MS) return 1;
+  return FLICKER_STEPS[Math.floor((t / FLICKER_MS) * FLICKER_STEPS.length)];
+}
 /** Brightness of panel `i` at `t` ms after the switch (mirrors the GLSL). */
 function panelValue(i, t, on) {
   const local = t - L.uPanelDelay.value[i];
@@ -65,6 +82,7 @@ function panelValue(i, t, on) {
   const k = local / (110 + vary * 300);
   return k >= 1 ? 0 : OFF_STEPS[Math.min(7, Math.floor(k * 8))];
 }
+/** Returns each tube's delay (ms), so the sound can follow them. */
 export function switchLights(on, now, instant = false) {
   lights.on = on;
   lights.start = instant ? now - 1e5 : now;
@@ -73,29 +91,64 @@ export function switchLights(on, now, instant = false) {
     L.uPanelVary.value[i] = Math.random();
   }
   L.uLightsOn.value = on ? 1 : 0;
+  return instant ? [] : [...L.uPanelDelay.value];
 }
 /** Advances the switch; returns true while tubes are still changing. */
 export function updateLights(now) {
   const t = now - lights.start;
   L.uLightsTime.value = t;
   let sum = 0;
-  for (let i = 0; i < PANELS; i++) sum += panelValue(i, t, lights.on);
+  const f = now - flicker.start;
+  L.uFlickerTime.value = f;
+  for (let i = 0; i < PANELS; i++)
+    sum += panelValue(i, t, lights.on) * flickerValue(i, f);
   U.uRevealPower.value = DARK + (1 - DARK) * (sum / PANELS);
-  return t < 1900;
+  const flickering = f < FLICKER_MS + 50;
+  if (!flickering && flicker.panels.length) {
+    flicker.panels = [];
+    L.uFlickerA.value = L.uFlickerB.value = -1;
+  }
+  return t < 1900 || flickering;
 }
 export function lightsState() {
-  return { on: lights.on, power: U.uRevealPower.value };
+  return {
+    on: lights.on,
+    power: U.uRevealPower.value,
+    flickering: flicker.panels.length > 0,
+  };
 }
-const PANEL_GLSL = /* glsl */ `
-uniform float uLightsTime, uLightsOn;
+/**
+ * Makes one panel (sometimes two neighbours apart) fail for a moment.
+ * Returns the panel indices and their FLICKER_STEPS timeline for the sound.
+ */
+export function flickerPanels(now, panels = null) {
+  const a = Math.floor(Math.random() * PANELS);
+  flicker.panels =
+    panels ?? (Math.random() < 0.3 ? [a, (a + 7 + Math.floor(Math.random() * 20)) % PANELS] : [a]);
+  flicker.start = now;
+  L.uFlickerA.value = flicker.panels[0];
+  L.uFlickerB.value = flicker.panels[1] ?? -1;
+  return { panels: flicker.panels, steps: FLICKER_STEPS, duration: FLICKER_MS };
+}
+export const PANEL_COUNT = PANELS;
+export const PANEL_GLSL = /* glsl */ `
+uniform float uLightsTime, uLightsOn, uFlickerA, uFlickerB, uFlickerTime;
+const float FLICKER_STEPS[${FLICKER_STEPS.length}] = float[${FLICKER_STEPS.length}](${FLICKER_STEPS.map((v) => v.toFixed(2)).join(", ")});
 uniform float uPanelDelay[${PANELS}];
 uniform float uPanelVary[${PANELS}];
 const float ON_STEPS[8] = float[8](${ON_STEPS.map((v) => v.toFixed(2)).join(", ")});
 const float OFF_STEPS[8] = float[8](${OFF_STEPS.map((v) => v.toFixed(2)).join(", ")});
-float panelLight(vec3 p) {
+int panelIndex(vec3 p) {
   int ix = int(clamp(floor((p.x + 3.39) / 1.13), 0.0, 5.0));
   int iz = int(clamp(floor((p.z - 0.009) / 1.2), 0.0, 5.0));
-  int i = ix + 6 * iz;
+  return ix + 6 * iz;
+}
+float panelFlicker(int i) {
+  float fi = float(i);
+  if ((abs(fi - uFlickerA) > 0.5 && abs(fi - uFlickerB) > 0.5) || uFlickerTime < 0.0 || uFlickerTime >= ${FLICKER_MS.toFixed(1)}) return 1.0;
+  return FLICKER_STEPS[int(floor(uFlickerTime / ${FLICKER_MS.toFixed(1)} * ${FLICKER_STEPS.length.toFixed(1)}))];
+}
+float panelSwitch(int i) {
   float local = uLightsTime - uPanelDelay[i];
   float vary = uPanelVary[i];
   if (uLightsOn > 0.5) {
@@ -106,6 +159,10 @@ float panelLight(vec3 p) {
   if (local <= 0.0) return 1.0;
   float k = local / (110.0 + vary * 300.0);
   return k >= 1.0 ? 0.0 : OFF_STEPS[int(min(7.0, floor(k * 8.0)))];
+}
+float panelLight(vec3 p) {
+  int i = panelIndex(p);
+  return panelSwitch(i) * panelFlicker(i);
 }
 `;
 
@@ -193,7 +250,7 @@ function linesMaterial() {
     transparent: true,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
-    toneMapped: false, // keep the pulse a saturated warm yellow
+    toneMapped: false, // keep the pulse a crisp cold white
   });
   m.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, U);
@@ -315,8 +372,9 @@ export function createReveal(scene, meshes, center, { onFinish } = {}) {
     const k = ease(clamp01((ms - w0) / (w1 - w0)));
     // Radius: from inside the drawer to beyond the entrance wall.
     U.uRevealRadius.value = ms < w0 ? -1 : 0.05 + k * 11;
+    const fadeIn = clamp01(ms / 900);
     U.uLineOpacity.value =
-      clamp01(ms / 500) *
+      fadeIn * fadeIn * (3 - 2 * fadeIn) *
       (1 - clamp01((ms - T.fade[0]) / (T.fade[1] - T.fade[0])));
     const zones = T.zones.map((z, i) => {
       const v = tube((ms - z) / T.flicker);
