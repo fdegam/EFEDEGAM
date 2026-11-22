@@ -151,12 +151,12 @@ export function createFigure(position, source = humanPoints()) {
         vec4 mv = viewMatrix * vec4(w, 1.0);
         gl_Position = projectionMatrix * mv;
         // Body sparks and a faint halo; in the dark the halo grows strong.
-        float layer = aLayer < 0.5 ? 0.75 * (1.0 + 0.6 * uLuminous) : mix(0.07, 0.42, uLuminous);
+        float layer = aLayer < 0.5 ? 0.75 * (1.0 + 0.6 * uLuminous) : mix(0.045, 0.26, uLuminous);
         // Dust only exists while it gathers: nothing floats before.
         vAlpha = uOpacity * clamp(uAssemble * 3.0, 0.0, 1.0) * layer * smoothstep(0.08, 0.4, dc) * (0.75 + 0.25 * sin(uTime * 2.0 + aSeed * 60.0));
         vGlow = f + g;
         vLayer = aLayer;
-        float size = aLayer < 0.5 ? 0.0055 + aSeed * 0.0055 : (0.05 + aSeed * 0.07) * (1.0 + 0.55 * uLuminous);
+        float size = aLayer < 0.5 ? 0.0047 + aSeed * 0.0047 : (0.05 + aSeed * 0.07) * (1.0 + 0.55 * uLuminous);
         gl_PointSize = clamp(size * uScale / -mv.z, 1.0, aLayer < 0.5 ? 8.0 : 96.0);
       }`,
     fragmentShader: /* glsl */ `

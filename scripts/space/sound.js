@@ -211,6 +211,8 @@ export function createSound() {
     get created() {
       return !!ctx;
     },
+    /** Called from a gesture handler: creates or resumes the context. */
+    unlock,
     onReady(fn) {
       listeners.add(fn);
     },
@@ -235,7 +237,7 @@ export function createSound() {
     },
     /** Tubes switching: `delays` in ms, one per tube that changes. */
     tubes(delays, on) {
-      if (!live()) return;
+      if (!ctx || muted) return;
       const t = ctx.currentTime;
       for (const d of delays) {
         const when = t + d / 1000;
@@ -253,39 +255,103 @@ export function createSound() {
           tubeClick(t + i * step, 0.5 + 0.25 * panels.length);
       });
     },
-    /** The construction: a cold sweep under the growing wave. */
-    build(durationMs) {
-      if (!live()) return;
+    /**
+     * The construction's light wave (timings from reveal.js): a soft low
+     * pulse as it is born in drawer 023, a cold airy sweep that rises and
+     * opens with the wave's own easing, crystalline glints as it runs along
+     * the edges (densest where the wave is fastest) and a long, spacious
+     * tail into the tubes coming on.
+     */
+    build({ wave: [w0, w1] }) {
+      // Scheduled even if the context is still resuming from the gesture.
+      if (!ctx || muted) return;
       const t = ctx.currentTime;
-      const d = durationMs / 1000;
-      const source = ctx.createBufferSource();
-      source.buffer = noise;
-      source.loop = true;
-      const filter = ctx.createBiquadFilter();
-      filter.type = "bandpass";
-      filter.Q.value = 4;
-      filter.frequency.setValueAtTime(260, t);
-      filter.frequency.exponentialRampToValueAtTime(3800, t + d * 0.7);
-      const env = ctx.createGain();
-      env.gain.setValueAtTime(0, t);
-      env.gain.linearRampToValueAtTime(0.05, t + d * 0.35);
-      env.gain.linearRampToValueAtTime(0, t + d);
-      source.connect(filter).connect(env).connect(master);
-      source.start(t);
-      source.stop(t + d + 0.1);
-      // Glassy partials, like the light catching the edges.
-      [1320, 1980, 2640].forEach((f, i) => {
+      const start = t + w0 / 1000;
+      const d = (w1 - w0) / 1000;
+      const ease = (u) => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2);
+      const curve = (from, to) =>
+        Float32Array.from({ length: 64 }, (_, i) => from * Math.pow(to / from, ease(i / 63)));
+      // A bus with its own small hall, so the wave sounds like the room.
+      const bus = ctx.createGain();
+      bus.gain.value = 1;
+      const hall = ctx.createConvolver();
+      const len = Math.floor(ctx.sampleRate * 2.6);
+      const ir = ctx.createBuffer(2, len, ctx.sampleRate);
+      for (let ch = 0; ch < 2; ch++) {
+        const data = ir.getChannelData(ch);
+        for (let i = 0; i < len; i++)
+          data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.2);
+      }
+      hall.buffer = ir;
+      const wet = ctx.createGain();
+      wet.gain.value = 0.35;
+      bus.connect(master);
+      bus.connect(hall).connect(wet).connect(master);
+      const stopAt = start + d + 3;
+
+      // 1 · Birth: a soft, deep pulse.
+      const thump = ctx.createOscillator();
+      thump.frequency.setValueAtTime(64, start);
+      thump.frequency.exponentialRampToValueAtTime(38, start + 1.1);
+      const thumpGain = ctx.createGain();
+      thumpGain.gain.setValueAtTime(0, start);
+      thumpGain.gain.linearRampToValueAtTime(0.16, start + 0.06);
+      thumpGain.gain.exponentialRampToValueAtTime(1e-4, start + 1.4);
+      thump.connect(thumpGain).connect(bus);
+      thump.start(start);
+      thump.stop(start + 1.5);
+
+      // 2 · The sweep: air through a band that opens as the wave grows.
+      const air = ctx.createBufferSource();
+      air.buffer = noise;
+      air.loop = true;
+      const band = ctx.createBiquadFilter();
+      band.type = "bandpass";
+      band.Q.value = 2.2;
+      band.frequency.setValueCurveAtTime(curve(160, 5200), start, d);
+      const airGain = ctx.createGain();
+      airGain.gain.setValueAtTime(0, start);
+      airGain.gain.linearRampToValueAtTime(0.07, start + d * 0.5);
+      airGain.gain.linearRampToValueAtTime(0.03, start + d);
+      airGain.gain.linearRampToValueAtTime(0, start + d + 0.9);
+      air.connect(band).connect(airGain).connect(bus);
+      air.start(start, Math.random());
+      air.stop(stopAt);
+
+      // 3 · A cold, glassy chord that rises with the wave (slightly detuned).
+      [523.25, 783.99, 1046.5, 1567.98].forEach((f, i) => {
         const o = ctx.createOscillator();
-        o.frequency.setValueAtTime(f * 0.5, t);
-        o.frequency.exponentialRampToValueAtTime(f, t + d * 0.7);
+        o.type = i % 2 ? "triangle" : "sine";
+        o.detune.value = (i - 1.5) * 6;
+        o.frequency.setValueCurveAtTime(curve(f * 0.5, f), start, d);
         const g = ctx.createGain();
-        g.gain.setValueAtTime(0, t);
-        g.gain.linearRampToValueAtTime(0.006 / (i + 1), t + d * 0.4);
-        g.gain.linearRampToValueAtTime(0, t + d);
-        o.connect(g).connect(master);
-        o.start(t);
-        o.stop(t + d + 0.1);
+        g.gain.setValueAtTime(0, start);
+        g.gain.linearRampToValueAtTime(0.012 / (1 + i * 0.6), start + d * 0.55);
+        g.gain.linearRampToValueAtTime(0, start + d + 1.2);
+        o.connect(g).connect(bus);
+        o.start(start);
+        o.stop(stopAt);
       });
+
+      // 4 · Glints along the edges, panned across the room.
+      for (let k = 0; k < 70; k++) {
+        let u;
+        do u = Math.random();
+        while (Math.random() > 6 * u * (1 - u) * 0.66); // denser mid-wave
+        const when = start + u * d;
+        const o = ctx.createOscillator();
+        o.frequency.value = 2400 + ease(u) * 5600 + Math.random() * 1400;
+        const g = ctx.createGain();
+        const len2 = 0.04 + Math.random() * 0.12;
+        g.gain.setValueAtTime(0, when);
+        g.gain.linearRampToValueAtTime(0.006 + Math.random() * 0.01, when + 0.004);
+        g.gain.exponentialRampToValueAtTime(1e-4, when + len2);
+        const pan = ctx.createStereoPanner();
+        pan.pan.value = (Math.random() * 2 - 1) * (0.3 + 0.6 * u);
+        o.connect(g).connect(pan).connect(bus);
+        o.start(when);
+        o.stop(when + len2 + 0.05);
+      }
     },
     /** Called every rendered frame with what is moving in the room. */
     update(dt, { drawerSpeed = 0, closing = false, ivyRate = 0, figureNear = 0, stir = 0 }) {

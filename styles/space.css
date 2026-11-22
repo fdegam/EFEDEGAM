@@ -202,6 +202,45 @@ button:active:not(:disabled) {
   transform-origin: 0 100%;
   will-change: transform;
 }
+/* «Pulsa para entrar»: the loader at 100 % waits for a gesture (it also
+   unlocks the sound). The whole loader is the target; this is its label. */
+.enter-room {
+  position: absolute;
+  left: 50%;
+  top: calc(50% + 28px);
+  transform: translateX(-50%);
+  padding: 10px 16px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: 400 11px/1 var(--mono);
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  cursor: pointer;
+  animation: enter-breathe 2.4s ease-in-out infinite;
+}
+.enter-room:focus-visible {
+  outline: 1px solid #d6e6fb88;
+  outline-offset: 4px;
+}
+body.awaiting-enter .loading-state {
+  cursor: pointer;
+}
+@keyframes enter-breathe {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .enter-room {
+    animation: none;
+  }
+}
+
 /* While loading, only the loader speaks: the room's controls and help
    appear once there is a room to explore. */
 body.is-loading .space-bottom,

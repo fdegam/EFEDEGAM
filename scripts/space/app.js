@@ -484,7 +484,7 @@ function startIntro() {
   centre.z += 0.05; // the wave is born at the front of drawer 023
   reveal = createReveal(scene, revealMeshes(), centre);
   if (!reduced.matches) {
-    sound.build(BUILD_ZONES.wave[1]);
+    sound.build(BUILD_ZONES);
     // Each zone's twelve tubes start with the panels' own flicker.
     sound.tubes(
       BUILD_ZONES.zones.flatMap((z) =>
@@ -1201,20 +1201,23 @@ async function start() {
     failed = false;
     renderFrame(performance.now());
     viewport.classList.add("is-ready");
-    document.body.classList.remove("is-loading");
     viewport.setAttribute("aria-busy", "false");
-    $("#loadingState").hidden = true;
     $("#scenePoster").hidden = true;
     $("#resetCamera").disabled = false;
     $("#focusProjects").disabled = false;
-    const skip =
-      reduced.matches || new URLSearchParams(location.search).has("sinintro");
+    const params = new URLSearchParams(location.search);
+    const skip = reduced.matches || params.has("sinintro");
     if (skip) {
+      openRoom();
       // Without motion, the visitor sees the validated reference framing.
       announce(
         "Sala lista. Pulsa un cajón para abrirlo, o selecciona Proyectos.",
       );
-    } else startIntro();
+    } else if (sound.muted || sound.running || params.has("debug")) {
+      // Nothing to unlock (muted, sound already allowed, or a review).
+      openRoom();
+      startIntro();
+    } else awaitEnter();
     invalidate();
   } catch (error) {
     console.warn(
@@ -1225,6 +1228,40 @@ async function start() {
       "No se ha podido mostrar la sala 3D en este dispositivo. Las carpetas siguen disponibles aquí; también puedes reintentarlo.",
     );
   }
+}
+
+/** The loader steps aside: the room (or its construction) shows. */
+function openRoom() {
+  awaitingEnter = false;
+  document.body.classList.remove("is-loading", "awaiting-enter");
+  $("#loadingState").hidden = true;
+  $("#enterRoom").hidden = true;
+}
+/**
+ * «Pulsa para entrar»: browsers only allow sound after a gesture, and the
+ * construction has its own sound. The loader, at 100 %, waits for a click,
+ * a touch or a key; that gesture unlocks the audio and the room builds.
+ */
+let awaitingEnter = false;
+function awaitEnter() {
+  awaitingEnter = true;
+  document.body.classList.add("awaiting-enter");
+  const button = $("#enterRoom");
+  button.hidden = false;
+  button.focus({ preventScroll: true });
+  announce("Sala preparada. Pulsa para entrar.");
+  const enter = (event) => {
+    if (event.type === "keydown" && (event.repeat || ["Tab", "Shift", "Control", "Alt", "Meta"].includes(event.key))) return;
+    event.preventDefault();
+    removeEventListener("keydown", enter, true);
+    $("#loadingState").removeEventListener("pointerup", enter);
+    sound.unlock();
+    openRoom();
+    startIntro();
+    invalidate();
+  };
+  addEventListener("keydown", enter, true);
+  $("#loadingState").addEventListener("pointerup", enter);
 }
 
 /* ------------------------------------------------------------------ */
@@ -1508,6 +1545,7 @@ export function getRoomState() {
     intro: Boolean(intro),
     reveal: revealState(),
     lights: lightsState(),
+    awaitingEnter,
     sound: {
       muted: sound.muted,
       created: sound.created,

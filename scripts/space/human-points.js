@@ -174,7 +174,7 @@ function sampleBody(parts, count, normals = []) {
 export function humanPoints() {
   const parts = body(-1.37, 0.035); // arms resting at the sides, feet apart
   const normals = [];
-  const skin = sampleBody(parts, 22000, normals);
+  const skin = sampleBody(parts, 40000, normals);
   const pts = [];
   const layers = [];
   for (let i = 0; i < skin.length; i += 3) {
@@ -183,7 +183,7 @@ export function humanPoints() {
     layers.push(0);
   }
   const haloNormals = [];
-  const halo = sampleBody(parts, 4000, haloNormals);
+  const halo = sampleBody(parts, 7000, haloNormals);
   for (let i = 0; i < halo.length; i += 3) {
     const out = 0.012 + rand() * 0.05;
     for (let k = 0; k < 3; k++)

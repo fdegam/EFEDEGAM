@@ -32,58 +32,94 @@ const rand = (() => {
 // pixelated plant photograph).
 const TILES = 6;
 const LEAF = 64;
+// Common ivy (Hedera helix): deep glossy greens, pale thin veins. Some
+// leaves younger (lighter), some old and dark, a few bronzed by the light.
 const GREENS = [
-  ["#1f4d1c", "#3f8a2e", "#7fbf48"],
-  ["#173f1a", "#2f6f2a", "#5ea33a"],
-  ["#2a5a1e", "#4f9a35", "#9fd05a"],
-  ["#123516", "#285f26", "#4c8f33"],
-  ["#2f5f22", "#5aa23c", "#b4d867"],
-  ["#1a4420", "#36782e", "#6db044"],
+  ["#14301a", "#2a5626", "#4f8a3a", "#b7cf98"],
+  ["#10281a", "#21482a", "#3d7434", "#a9c48d"],
+  ["#1b3a17", "#356a2a", "#69a347", "#cfe0b0"],
+  ["#0f2416", "#1d4022", "#33652d", "#98b682"],
+  ["#22381a", "#47652a", "#7b9a43", "#d4dfa6"],
+  ["#132e1e", "#27533a", "#48855a", "#b9d3b4"],
 ];
 function leafAtlas() {
   const c = document.createElement("canvas");
   c.width = LEAF * TILES;
   c.height = LEAF;
   const g = c.getContext("2d");
-  GREENS.forEach(([dark, mid, light], t) => {
+  GREENS.forEach(([dark, mid, light, vein], t) => {
     g.save();
-    g.translate(t * LEAF + LEAF / 2, LEAF / 2 + 4);
-    // Ivy leaf: five rounded lobes.
+    g.translate(t * LEAF + LEAF / 2, LEAF / 2 + 3);
+    g.rotate((t - 2.5) * 0.06);
+    // An ivy leaf: a pointed top lobe, two pointed side lobes and two
+    // small basal lobes around the stem, with a heart-shaped base.
+    const lobe = 1 + (t % 3) * 0.06;
     g.beginPath();
-    g.moveTo(0, 26);
-    g.bezierCurveTo(-10, 18, -30, 14, -28, 0);
-    g.bezierCurveTo(-30, -8, -18, -10, -14, -12);
-    g.bezierCurveTo(-16, -24, -6, -30, 0, -28);
-    g.bezierCurveTo(6, -30, 16, -24, 14, -12);
-    g.bezierCurveTo(18, -10, 30, -8, 28, 0);
-    g.bezierCurveTo(30, 14, 10, 18, 0, 26);
-    const grad = g.createLinearGradient(-20, -24, 18, 24);
+    g.moveTo(0, 14);
+    g.quadraticCurveTo(-6, 22, -14, 20);
+    g.quadraticCurveTo(-22, 18, -20, 12);
+    g.quadraticCurveTo(-29 * lobe, 8, -29 * lobe, -2);
+    g.quadraticCurveTo(-22, -6, -12, -9);
+    g.quadraticCurveTo(-8, -20, 0, -29 * lobe);
+    g.quadraticCurveTo(8, -20, 12, -9);
+    g.quadraticCurveTo(22, -6, 29 * lobe, -2);
+    g.quadraticCurveTo(29 * lobe, 8, 20, 12);
+    g.quadraticCurveTo(22, 18, 14, 20);
+    g.quadraticCurveTo(6, 22, 0, 14);
+    g.closePath();
+    const grad = g.createRadialGradient(-6, -8, 2, 0, 2, 30);
     grad.addColorStop(0, light);
-    grad.addColorStop(0.45, mid);
+    grad.addColorStop(0.5, mid);
     grad.addColorStop(1, dark);
     g.fillStyle = grad;
     g.fill();
-    // Veins and a sheen.
-    g.strokeStyle = light;
-    g.globalAlpha = 0.55;
-    g.lineWidth = 2;
+    // Darker rim, as the leaf's edge curls away from the light.
+    g.strokeStyle = dark;
+    g.globalAlpha = 0.7;
+    g.lineWidth = 2.2;
+    g.stroke();
+    g.clip();
+    // Mottled surface.
+    for (let k = 0; k < 70; k++) {
+      g.globalAlpha = 0.08 + Math.random() * 0.1;
+      g.fillStyle = Math.random() < 0.5 ? dark : light;
+      g.beginPath();
+      g.arc((Math.random() - 0.5) * 56, (Math.random() - 0.5) * 52, 1 + Math.random() * 3, 0, Math.PI * 2);
+      g.fill();
+    }
+    // Pale palmate veins from the base.
+    g.strokeStyle = vein;
+    g.globalAlpha = 0.6;
+    g.lineWidth = 1.1;
     for (const [x, y] of [
-      [0, -24],
-      [-22, -2],
-      [22, -2],
-      [-12, 16],
-      [12, 16],
+      [0, -26],
+      [-25, -2],
+      [25, -2],
+      [-17, 15],
+      [17, 15],
     ]) {
       g.beginPath();
-      g.moveTo(0, 18);
-      g.lineTo(x, y);
+      g.moveTo(0, 12);
+      g.quadraticCurveTo(x * 0.4, (y + 12) * 0.5, x, y);
       g.stroke();
     }
-    g.globalAlpha = 0.25;
-    g.fillStyle = "#ffffff";
+    // Glossy sheen of the waxy surface.
+    const sheen = g.createLinearGradient(-20, -24, 6, 0);
+    sheen.addColorStop(0, "rgba(255,255,255,0.28)");
+    sheen.addColorStop(1, "rgba(255,255,255,0)");
+    g.globalAlpha = 1;
+    g.fillStyle = sheen;
+    g.fillRect(-30, -30, 40, 34);
+    g.restore();
+    // The stem.
+    g.save();
+    g.translate(t * LEAF + LEAF / 2, LEAF / 2 + 3);
+    g.strokeStyle = "#4a3a22";
+    g.lineWidth = 2;
     g.beginPath();
-    g.ellipse(-8, -8, 9, 5, -0.6, 0, Math.PI * 2);
-    g.fill();
+    g.moveTo(0, 14);
+    g.lineTo(1, 28);
+    g.stroke();
     g.restore();
   });
   const tex = new THREE.CanvasTexture(c);
@@ -253,7 +289,10 @@ function ivyMaterial(atlas, uniforms) {
         vec3 ax = tx * c + ty * s, ay = -tx * s + ty * c;
         vec3 w = aCenter + n * aLift + (ax * position.x + ay * position.y) * aSize * grow;
         vUv = vec2((position.x + 0.5 + aTile) / ${TILES.toFixed(1)}, position.y + 0.5);
-        vShade = 0.85 + 0.15 * dot(n, normalize(vec3(0.2, 1.0, 0.4)));
+        // Each leaf tilts a little out of the wall and catches the ceiling
+        // light differently; some sit in the shade of others.
+        float tilt = fract(sin(aAngle * 91.7 + aBirth * 13.1) * 43758.5);
+        vShade = (0.72 + 0.28 * dot(n, normalize(vec3(0.2, 1.0, 0.4)))) * (0.7 + 0.45 * tilt);
         gl_Position = projectionMatrix * viewMatrix * vec4(w, 1.0);
       }`,
     fragmentShader: /* glsl */ `
@@ -273,9 +312,9 @@ function ivyMaterial(atlas, uniforms) {
 
 /* --- the green that takes over the camera ----------------------------- */
 function overlayLayer(atlasCanvas) {
-  const W = 64,
-    H = 36,
-    S = 7; // canvas pixels per leaf; CSS enlarges the canvas without smoothing
+  const W = 112,
+    H = 63,
+    S = 12; // canvas pixels per leaf; CSS enlarges the canvas without smoothing
   const el = document.createElement("canvas");
   el.className = "ivy-overlay";
   el.width = W * 1;
@@ -494,12 +533,12 @@ export function createIvy(scene, drawer, uniforms, { onGreen } = {}) {
     },
     /**
      * Draws the ivy as a coarse mosaic over the frame already rendered.
-     * Blocks are ~1/70 of the shorter screen side (≈15 px on a laptop).
+     * Blocks are ~1/120 of the shorter screen side (≈8 px on a laptop).
      */
     render(renderer, camera) {
       if (!mesh || !mesh.visible || stage === 0) return;
       const size = renderer.getDrawingBufferSize(new THREE.Vector2());
-      const block = Math.max(6, Math.round(Math.min(size.x, size.y) / 70));
+      const block = Math.max(4, Math.round(Math.min(size.x, size.y) / 120));
       const w = Math.max(1, Math.ceil(size.x / block)),
         h = Math.max(1, Math.ceil(size.y / block));
       if (target.width !== w || target.height !== h) target.setSize(w, h);

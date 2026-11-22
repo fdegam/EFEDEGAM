@@ -57,6 +57,12 @@ class SpaceChecks(unittest.TestCase):
         # Shader compilation can block the page for minutes here: no short navigation timeout.
         self.page.goto(self.url + '/' + query, wait_until='domcontentloaded', timeout=180000)
         expect(self.page.locator('#sceneViewport')).to_have_class(re.compile('is-ready'), timeout=240000)
+        self.enter()
+
+    def enter(self):
+        # With motion allowed, the loader waits for «Pulsa para entrar».
+        if self.page.locator('#enterRoom').is_visible():
+            self.page.locator('#enterRoom').click()
 
     def state(self):
         return self.page.evaluate("async () => (await import('./scripts/space/app.js')).getRoomState()")
@@ -185,8 +191,12 @@ class SpaceChecks(unittest.TestCase):
 
     def test_entrance_sequence_brakes_in_front_of_archive(self):
         self.page.emulate_media(reduced_motion='no-preference')
-        self.page.goto(self.url + '/', wait_until='networkidle')
+        self.page.goto(self.url + '/', wait_until='domcontentloaded', timeout=180000)
         expect(self.page.locator('#sceneViewport')).to_have_class(re.compile('is-ready'), timeout=240000)
+        expect(self.page.locator('#enterRoom')).to_be_visible()
+        self.assertTrue(self.state()['awaitingEnter'])
+        self.page.locator('#enterRoom').click()
+        self.assertTrue(self.state()['sound']['created'], 'Entering unlocks the sound')
         self.assertTrue(self.state()['intro'])
         expect(self.page.locator('#skipIntro')).to_be_visible()
         start = self.state()['camera']['position'][2]
@@ -216,8 +226,12 @@ class SpaceChecks(unittest.TestCase):
 
     def test_skip_entrance(self):
         self.page.emulate_media(reduced_motion='no-preference')
-        self.page.goto(self.url + '/', wait_until='networkidle')
+        self.page.goto(self.url + '/', wait_until='domcontentloaded', timeout=180000)
         expect(self.page.locator('#sceneViewport')).to_have_class(re.compile('is-ready'), timeout=240000)
+        expect(self.page.locator('#enterRoom')).to_be_visible()
+        self.assertTrue(self.state()['awaitingEnter'])
+        self.page.locator('#enterRoom').click()
+        self.assertTrue(self.state()['sound']['created'], 'Entering unlocks the sound')
         # Software WebGL is slow: press the button as soon as it appears.
         self.page.wait_for_function("() => { const b = document.querySelector('#skipIntro'); if (b && !b.hidden) { b.click(); return true; } return false; }", polling=20, timeout=45000)
         state = self.state()
@@ -285,7 +299,7 @@ class SpaceChecks(unittest.TestCase):
         self.assertTrue(self.state()['lights']['on'])
 
     def test_plantimania_ivy_takes_the_room(self):
-        self.page.goto(self.url + '/?sinsalida', wait_until='networkidle')
+        self.page.goto(self.url + '/?sinsalida', wait_until='domcontentloaded', timeout=180000)
         expect(self.page.locator('#sceneViewport')).to_have_class(re.compile('is-ready'), timeout=240000)
         tag = self.page.locator('.drawer-tag', has_text='PLANTIMANÍA')
         tag.focus()
