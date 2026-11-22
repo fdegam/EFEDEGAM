@@ -126,19 +126,40 @@ function spillLayer(panels) {
  * against the panel and fading as it falls, a little wider than the panel.
  * The density is integrated along the view ray through a box (8 samples).
  */
-const VOLUME = { depth: 1.3, widen: 0.22, strength: 0.028 };
+const VOLUME = { depth: 1.3, widen: 0.85, strength: 0.02 };
+// The room's inner faces (with a centimetre's margin): columns never reach
+// behind a wall, where the wall would cut them into a hard line.
+const ROOM = { x: [-3.35, 3.35], y: [0.01, 2.74], z: [0.04, 7.18] };
 function volumeLayer(panels) {
   const geo = new THREE.InstancedBufferGeometry();
   geo.copy(new THREE.BoxGeometry(1, 1, 1));
   const centre = new Float32Array(panels.length * 3);
   const half = new Float32Array(panels.length * 2);
+  const lo = new Float32Array(panels.length * 3);
+  const hi = new Float32Array(panels.length * 3);
+  const clamp = (v, [a, b]) => Math.min(b, Math.max(a, v));
   panels.forEach((b, i) => {
     const c = b.getCenter(new THREE.Vector3());
-    centre.set([c.x, b.min.y - 0.004, c.z], i * 3);
-    half.set([(b.max.x - b.min.x) / 2, (b.max.z - b.min.z) / 2], i * 2);
+    const top = b.min.y - 0.004;
+    const hx = (b.max.x - b.min.x) / 2,
+      hz = (b.max.z - b.min.z) / 2;
+    centre.set([c.x, top, c.z], i * 3);
+    half.set([hx, hz], i * 2);
+    lo.set([
+      clamp(c.x - hx - VOLUME.widen, ROOM.x),
+      clamp(top - VOLUME.depth, ROOM.y),
+      clamp(c.z - hz - VOLUME.widen, ROOM.z),
+    ], i * 3);
+    hi.set([
+      clamp(c.x + hx + VOLUME.widen, ROOM.x),
+      top,
+      clamp(c.z + hz + VOLUME.widen, ROOM.z),
+    ], i * 3);
   });
   geo.setAttribute("aCentre", new THREE.InstancedBufferAttribute(centre, 3));
   geo.setAttribute("aHalf", new THREE.InstancedBufferAttribute(half, 2));
+  geo.setAttribute("aLo", new THREE.InstancedBufferAttribute(lo, 3));
+  geo.setAttribute("aHi", new THREE.InstancedBufferAttribute(hi, 3));
   geo.instanceCount = panels.length;
   const material = new THREE.ShaderMaterial({
     uniforms: { ...uniforms(), uStrength: { value: VOLUME.strength } },
@@ -147,45 +168,46 @@ function volumeLayer(panels) {
     blending: THREE.AdditiveBlending,
     side: THREE.BackSide, // seen from inside the column too
     vertexShader: /* glsl */ `
-      attribute vec3 aCentre;
+      attribute vec3 aCentre, aLo, aHi;
       attribute vec2 aHalf;
-      varying vec3 vWorld;
-      varying vec3 vCentre;
+      varying vec3 vWorld, vCentre, vLo, vHi;
       varying vec2 vHalf;
       void main() {
-        vec3 size = vec3(2.0 * (aHalf.x + ${VOLUME.widen.toFixed(2)}), ${VOLUME.depth.toFixed(2)}, 2.0 * (aHalf.y + ${VOLUME.widen.toFixed(2)}));
-        vec3 p = aCentre + position * size - vec3(0.0, ${(VOLUME.depth / 2).toFixed(3)}, 0.0);
+        vec3 p = mix(aLo, aHi, position + 0.5);
         vWorld = p;
         vCentre = aCentre;
         vHalf = aHalf;
+        vLo = aLo;
+        vHi = aHi;
         gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.0);
       }`,
     fragmentShader: /* glsl */ `
       ${COMMON}
       uniform vec3 uTint;
       uniform float uStrength;
-      varying vec3 vWorld;
-      varying vec3 vCentre;
+      varying vec3 vWorld, vCentre, vLo, vHi;
       varying vec2 vHalf;
       float density(vec3 p) {
         float below = vCentre.y - p.y;                    // metres under the panel
         vec2 q = abs(p.xz - vCentre.xz) - vHalf - below * 0.12;  // widens as it falls
         float d = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0);
-        float side = 1.0 - smoothstep(-0.12, 0.16, d);
-        return side * exp(-below / 0.4);
+        // A wide, gaussian shoulder: no edge anywhere, zero well inside the box.
+        float side = exp(-pow(max(d + 0.2, 0.0) / 0.32, 2.0));
+        float foot = 1.0 - smoothstep(${(VOLUME.depth * 0.55).toFixed(2)}, ${(VOLUME.depth * 0.97).toFixed(2)}, below);
+        return side * exp(-below / 0.4) * foot;
       }
       void main() {
         vec3 ro = cameraPosition;
         vec3 rd = normalize(vWorld - ro);
-        vec3 lo = vec3(vCentre.x - vHalf.x - ${VOLUME.widen.toFixed(2)}, vCentre.y - ${VOLUME.depth.toFixed(2)}, vCentre.z - vHalf.y - ${VOLUME.widen.toFixed(2)});
-        vec3 hi = vec3(vCentre.x + vHalf.x + ${VOLUME.widen.toFixed(2)}, vCentre.y, vCentre.z + vHalf.y + ${VOLUME.widen.toFixed(2)});
-        vec3 t0 = (lo - ro) / rd, t1 = (hi - ro) / rd;
+        vec3 t0 = (vLo - ro) / rd, t1 = (vHi - ro) / rd;
         vec3 tmin = min(t0, t1), tmax = max(t0, t1);
         float tn = max(max(max(tmin.x, tmin.y), tmin.z), 0.0);
         float tf = min(min(tmax.x, tmax.y), tmax.z);
         if (tf <= tn) discard;
-        float step = (tf - tn) / 8.0, sum = 0.0;
-        for (int i = 0; i < 8; i++) sum += density(ro + rd * (tn + (float(i) + 0.5) * step));
+        // 12 samples, shifted per pixel so no banding shows.
+        float jitter = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453);
+        float step = (tf - tn) / 12.0, sum = 0.0;
+        for (int i = 0; i < 12; i++) sum += density(ro + rd * (tn + (float(i) + jitter) * step));
         float a = sum * step * uStrength * panelOn(vCentre);
         gl_FragColor = vec4(uTint * a, 1.0);
         #include <tonemapping_fragment>
