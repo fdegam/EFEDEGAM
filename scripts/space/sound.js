@@ -239,19 +239,21 @@ export function createSound() {
     const end = w1 + 3;
 
     // 1 · The burst: a soft deep thump and a bright crackle of particles.
-    if (future(T0)) {
+    // A late start (up to 0.35 s) still gets it, at once: it is the cue.
+    if (elapsed < 0.35) {
+      const B = Math.max(T0, t);
       const o = ctx.createOscillator();
-      o.frequency.setValueAtTime(70, T0);
-      o.frequency.exponentialRampToValueAtTime(34, T0 + 0.9);
+      o.frequency.setValueAtTime(70, B);
+      o.frequency.exponentialRampToValueAtTime(34, B + 0.9);
       const g = ctx.createGain();
-      g.gain.setValueAtTime(0, T0);
-      g.gain.linearRampToValueAtTime(0.2, T0 + 0.02);
-      g.gain.exponentialRampToValueAtTime(1e-4, T0 + 1.2);
+      g.gain.setValueAtTime(0, B);
+      g.gain.linearRampToValueAtTime(0.2, B + 0.02);
+      g.gain.exponentialRampToValueAtTime(1e-4, B + 1.2);
       o.connect(g).connect(bus);
-      o.start(T0);
-      o.stop(T0 + 1.3);
+      o.start(B);
+      o.stop(B + 1.3);
       for (let k = 0; k < 40; k++) {
-        const at = T0 + Math.pow(Math.random(), 2) * 0.6;
+        const at = B + Math.pow(Math.random(), 2) * 0.6;
         const n = ctx.createBufferSource();
         n.buffer = noise;
         const f = ctx.createBiquadFilter();
