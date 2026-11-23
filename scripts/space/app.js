@@ -24,6 +24,7 @@ import { createFigure } from "./figure.js";
 import { addDrawerLabels } from "./labels.js";
 import { createCeilingGlow } from "./glow.js";
 import { createSound } from "./sound.js";
+import { createOrb } from "./orb.js";
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -1213,8 +1214,8 @@ async function start() {
       announce(
         "Sala lista. Pulsa un cajón para abrirlo, o selecciona Proyectos.",
       );
-    } else if (sound.muted || sound.running || params.has("debug")) {
-      // Nothing to unlock (muted, sound already allowed, or a review).
+    } else if (params.has("debug")) {
+      // Reviews and frozen frames start the construction at once.
       openRoom();
       startIntro();
     } else awaitEnter();
@@ -1238,30 +1239,88 @@ function openRoom() {
   $("#enterRoom").hidden = true;
 }
 /**
- * «Pulsa para entrar»: browsers only allow sound after a gesture, and the
- * construction has its own sound. The loader, at 100 %, waits for a click,
- * a touch or a key; that gesture unlocks the audio and the room builds.
+ * «Mantener pulsado para abrir»: at 100 % the loader shows a sphere of
+ * light (scripts/space/orb.js) exactly where drawer 023 will appear. Held
+ * for 3 s — mouse, finger, Space or Enter — it beats ever harder, bursts,
+ * and the construction wave is born there. The first press also unlocks
+ * the sound (browsers only allow it after a gesture).
  */
-let awaitingEnter = false;
+let awaitingEnter = false,
+  orb = null;
+/** Drawer 023's front on screen, as the entrance's first frame shows it. */
+function orbPoint() {
+  const view = camera.clone();
+  const pose = initialPose();
+  view.position.copy(pose.position);
+  view.quaternion.copy(pose.quaternion);
+  view.updateMatrixWorld();
+  room.updateMatrixWorld(true);
+  const p = projectDrawer.node.getWorldPosition(new THREE.Vector3());
+  p.z += 0.05;
+  p.project(view);
+  const box = canvas.getBoundingClientRect();
+  return [box.left + ((p.x + 1) / 2) * box.width, box.top + ((1 - p.y) / 2) * box.height];
+}
+function placeOrb() {
+  if (!orb || !awaitingEnter) return;
+  const [x, y] = orbPoint();
+  orb.moveTo(x, y);
+  const button = $("#enterRoom");
+  const box = $("#loadingState").getBoundingClientRect();
+  button.style.left = `${x - box.left}px`;
+  button.style.top = `${y - box.top}px`;
+}
 function awaitEnter() {
   awaitingEnter = true;
   document.body.classList.add("awaiting-enter");
   const button = $("#enterRoom");
+  const loader = $("#loadingState");
   button.hidden = false;
+  orb = createOrb($("#enterOrb"), {
+    onHold: (k) => sound.charge(k),
+    onOpen: () => {
+      cleanup();
+      announce("Abriendo el archivo.");
+      openRoom();
+      startIntro();
+      invalidate();
+    },
+  });
+  const [x, y] = orbPoint();
+  orb.show(x, y);
+  placeOrb();
   button.focus({ preventScroll: true });
-  announce("Sala preparada. Pulsa para entrar.");
-  const enter = (event) => {
-    if (event.type === "keydown" && (event.repeat || ["Tab", "Shift", "Control", "Alt", "Meta"].includes(event.key))) return;
-    event.preventDefault();
-    removeEventListener("keydown", enter, true);
-    $("#loadingState").removeEventListener("pointerup", enter);
+  announce("Sala preparada. Mantén pulsado tres segundos para abrir.");
+  const press = (event) => {
+    if (event.type === "keydown") {
+      if (event.repeat || !(event.code === "Space" || event.key === "Enter")) return;
+      event.preventDefault();
+    } else if (event.button > 0) return;
     sound.unlock();
-    openRoom();
-    startIntro();
-    invalidate();
+    orb.hold(true);
+    button.classList.add("is-holding");
   };
-  addEventListener("keydown", enter, true);
-  $("#loadingState").addEventListener("pointerup", enter);
+  const release = (event) => {
+    if (event.type === "keyup" && !(event.code === "Space" || event.key === "Enter")) return;
+    orb.hold(false);
+    button.classList.remove("is-holding");
+  };
+  // A press anywhere on the loader counts, so it does not need precision.
+  const listeners = [
+    [loader, "pointerdown", press],
+    [window, "keydown", press],
+    [window, "pointerup", release],
+    [window, "pointercancel", release],
+    [window, "keyup", release],
+    [window, "blur", release],
+    [window, "resize", placeOrb],
+    [loader, "contextmenu", (e) => e.preventDefault()],
+  ];
+  listeners.forEach(([t, n, f]) => t.addEventListener(n, f, true));
+  function cleanup() {
+    listeners.forEach(([t, n, f]) => t.removeEventListener(n, f, true));
+    button.classList.remove("is-holding");
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -1546,6 +1605,7 @@ export function getRoomState() {
     reveal: revealState(),
     lights: lightsState(),
     awaitingEnter,
+    entrance: orb ? { holding: orb.holding, held: orb.held, opened: orb.opened } : null,
     sound: {
       muted: sound.muted,
       created: sound.created,

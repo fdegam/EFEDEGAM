@@ -37,6 +37,7 @@ Si el dispositivo no puede mostrar WebGL, las mismas fichas se pueden consultar 
 | `scripts/space/human-points.js`     | Nube de puntos de la figura, calculada en un _worker_       |
 | `scripts/space/glow.js`             | Halo de los paneles de luz del techo                        |
 | `scripts/space/sound.js`            | Sonido sintetizado: fluorescentes, cajones, hiedra, figura  |
+| `scripts/space/orb.js`              | Esfera de partículas de la entrada (mantener pulsado)       |
 | `scripts/projects.js`               | Fuente editable de las fichas de ejemplo                    |
 | `scripts/drawers.js`                | Los seis cajones con nombre y su posición                   |
 | `assets/models/`                    | Modelo GLB, texturas de luz y configuración                 |

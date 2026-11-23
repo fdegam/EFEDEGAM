@@ -60,9 +60,16 @@ class SpaceChecks(unittest.TestCase):
         self.enter()
 
     def enter(self):
-        # With motion allowed, the loader waits for «Pulsa para entrar».
+        # With motion allowed, the loader waits for «Mantener pulsado para abrir».
         if self.page.locator('#enterRoom').is_visible():
-            self.page.locator('#enterRoom').click()
+            self.hold_sphere(3.4)
+
+    def hold_sphere(self, seconds):
+        box = self.page.locator('#enterRoom').bounding_box()
+        self.page.mouse.move(box['x'] + box['width'] / 2, box['y'] + 60)
+        self.page.mouse.down()
+        self.page.wait_for_timeout(int(seconds * 1000))
+        self.page.mouse.up()
 
     def state(self):
         return self.page.evaluate("async () => (await import('./scripts/space/app.js')).getRoomState()")
@@ -195,8 +202,9 @@ class SpaceChecks(unittest.TestCase):
         expect(self.page.locator('#sceneViewport')).to_have_class(re.compile('is-ready'), timeout=240000)
         expect(self.page.locator('#enterRoom')).to_be_visible()
         self.assertTrue(self.state()['awaitingEnter'])
-        self.page.locator('#enterRoom').click()
-        self.assertTrue(self.state()['sound']['created'], 'Entering unlocks the sound')
+        self.hold_sphere(3.4)
+        self.wait_state('s.intro')
+        self.assertTrue(self.state()['sound']['created'], 'Holding unlocks the sound')
         self.assertTrue(self.state()['intro'])
         expect(self.page.locator('#skipIntro')).to_be_visible()
         start = self.state()['camera']['position'][2]
@@ -230,8 +238,9 @@ class SpaceChecks(unittest.TestCase):
         expect(self.page.locator('#sceneViewport')).to_have_class(re.compile('is-ready'), timeout=240000)
         expect(self.page.locator('#enterRoom')).to_be_visible()
         self.assertTrue(self.state()['awaitingEnter'])
-        self.page.locator('#enterRoom').click()
-        self.assertTrue(self.state()['sound']['created'], 'Entering unlocks the sound')
+        self.hold_sphere(3.4)
+        self.wait_state('s.intro')
+        self.assertTrue(self.state()['sound']['created'], 'Holding unlocks the sound')
         # Software WebGL is slow: press the button as soon as it appears.
         self.page.wait_for_function("() => { const b = document.querySelector('#skipIntro'); if (b && !b.hidden) { b.click(); return true; } return false; }", polling=20, timeout=45000)
         state = self.state()
@@ -271,6 +280,25 @@ class SpaceChecks(unittest.TestCase):
         self.page.keyboard.press('Control')
         self.wait_state('s.lights.on && s.lights.power === 1')
         expect(key).to_have_attribute('aria-pressed', 'false')
+
+    def test_sphere_opens_only_after_three_seconds(self):
+        self.page.emulate_media(reduced_motion='no-preference')
+        self.page.goto(self.url + '/', wait_until='domcontentloaded', timeout=180000)
+        expect(self.page.locator('#enterRoom')).to_be_visible(timeout=240000)
+        expect(self.page.locator('#enterRoom')).to_contain_text('Mantener pulsado para abrir')
+        # Released after one second: nothing opens, the sphere calms down.
+        self.hold_sphere(1.0)
+        self.page.wait_for_timeout(600)
+        state = self.state()
+        self.assertTrue(state['awaitingEnter'])
+        self.assertFalse(state['entrance']['opened'])
+        # Held with the keyboard for three seconds: it bursts and the room builds.
+        self.page.locator('#enterRoom').focus()
+        self.page.keyboard.down('Space')
+        self.page.wait_for_timeout(3400)
+        self.page.keyboard.up('Space')
+        self.wait_state('s.entrance.opened && s.intro && !s.awaitingEnter')
+        expect(self.page.locator('#loadingState')).to_be_hidden()
 
     def test_sound_key_mutes_and_remembers(self):
         self.load()

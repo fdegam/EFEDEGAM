@@ -30,6 +30,7 @@
     <link rel="modulepreload" href="scripts/space/labels.js" />
     <link rel="modulepreload" href="scripts/space/glow.js" />
     <link rel="modulepreload" href="scripts/space/sound.js" />
+    <link rel="modulepreload" href="scripts/space/orb.js" />
     <link rel="modulepreload" href="scripts/projects.js" />
     <link rel="modulepreload" href="scripts/drawers.js" />
     <link rel="preload" href="assets/models/room.json" as="fetch" crossorigin />
@@ -129,6 +130,7 @@
         <button id="skipIntro" class="skip-intro" type="button" hidden>
           Saltar entrada
         </button>
+        <canvas id="enterOrb" class="enter-orb" hidden aria-hidden="true"></canvas>
         <div id="loadingState" class="loading-state" role="status">
           <span class="sr-only">Preparando la sala</span>
           <span class="loading-grid" aria-hidden="true"></span>
@@ -138,8 +140,16 @@
           <span class="loading-bar" aria-hidden="true"
             ><span id="loadingBar"></span
           ></span>
-          <button id="enterRoom" class="enter-room" type="button" hidden>
-            Pulsa para entrar
+          <button
+            id="enterRoom"
+            class="enter-room"
+            type="button"
+            hidden
+            aria-label="Mantén pulsado tres segundos (ratón, dedo, Espacio o Intro) para abrir la sala"
+          >
+            <span class="enter-label" aria-hidden="true"
+              >Mantener pulsado para abrir</span
+            >
           </button>
           <p id="loadingText" class="loading-percent" aria-hidden="true">
             00 %

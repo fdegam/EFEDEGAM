@@ -39,6 +39,7 @@ export function createSound() {
   let master, hum, hiss, slide, slideFilter, particles, particlesFilter;
   let noise = null;
   let lastPower = 1;
+  let chargeVoice = null;
   let grainClock = 0;
   const listeners = new Set();
 
@@ -227,6 +228,32 @@ export function createSound() {
     /** Room light level 0.03–1 (lightsState().power). */
     setPower(power) {
       if (Math.abs(power - lastPower) > 1e-3) setPower(power);
+    },
+    /**
+     * The sphere being held: a soft, rising charge (0–1) under its beat;
+     * 0 silences it (released, or the burst took over).
+     */
+    charge(k) {
+      if (!ctx) return;
+      const t = ctx.currentTime;
+      if (!chargeVoice) {
+        if (k <= 0) return;
+        const o1 = ctx.createOscillator();
+        const o2 = ctx.createOscillator();
+        o2.type = "triangle";
+        const gain = ctx.createGain();
+        gain.gain.value = 0;
+        o1.connect(gain);
+        o2.connect(gain);
+        gain.connect(master);
+        o1.start();
+        o2.start();
+        chargeVoice = { o1, o2, gain };
+      }
+      const { o1, o2, gain } = chargeVoice;
+      o1.frequency.setTargetAtTime(70 + 190 * k * k, t, 0.05);
+      o2.frequency.setTargetAtTime(140 + 520 * k * k, t, 0.05);
+      gain.gain.setTargetAtTime(muted ? 0 : 0.05 * Math.pow(k, 1.4), t, k > 0 ? 0.08 : 0.03);
     },
     /** The «Ctrl» key: down and up of a mechanical switch. */
     keyClick(down = true) {
