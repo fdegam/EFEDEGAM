@@ -39,7 +39,8 @@ export function createSound() {
   let master, hum, hiss, slide, slideFilter, particles, particlesFilter;
   let noise = null;
   let lastPower = 0; // silent until the room opens (app.js sets it)
-  let chargeVoice = null;
+  let chargeVoice = null,
+    servoVoice = null;
   let grainClock = 0;
   const listeners = new Set();
 
@@ -447,9 +448,30 @@ export function createSound() {
       return introState;
     },
     /** Called every rendered frame with what is moving in the room. */
-    update(dt, { drawerSpeed = 0, closing = false, ivyRate = 0, figureNear = 0, stir = 0 }) {
+    update(dt, { drawerSpeed = 0, closing = false, ivyRate = 0, figureNear = 0, stir = 0, servo = 0 }) {
       if (!ctx) return;
       const t = ctx.currentTime;
+      // The camera wall's servos: a thin motor whine while the heads turn.
+      if (!servoVoice && servo > 0.05 && !muted) {
+        const o = ctx.createOscillator();
+        o.type = "sawtooth";
+        o.frequency.value = 180;
+        const f = ctx.createBiquadFilter();
+        f.type = "bandpass";
+        f.frequency.value = 1400;
+        f.Q.value = 3;
+        const gain = ctx.createGain();
+        gain.gain.value = 0;
+        o.connect(f).connect(gain).connect(master);
+        o.start();
+        servoVoice = { o, f, gain };
+      }
+      if (servoVoice) {
+        const k = Math.min(1, servo / 1.5);
+        servoVoice.gain.gain.setTargetAtTime(0.025 * k, t, 0.05);
+        servoVoice.o.frequency.setTargetAtTime(150 + 160 * k, t, 0.05);
+        servoVoice.f.frequency.setTargetAtTime(1100 + 900 * k, t, 0.05);
+      }
       const speed = Math.min(1, drawerSpeed / 0.9);
       slide.gain.setTargetAtTime(0.11 * speed, t, 0.03);
       slideFilter.frequency.setTargetAtTime(500 + 900 * speed, t, 0.05);

@@ -340,7 +340,7 @@ cameras = {o.name: cam(o) for o in scene.objects if o.type == 'CAMERA'}
 config = {
     'camera': {**cameras['CAM_01_Referencia'], 'referenceAspect': aspect},
     'cameras': cameras,
-    'walkBounds': {'minX': -3.05, 'maxX': 3.05, 'minZ': 1.0, 'maxZ': 6.9},
+    'walkBounds': {'minX': -3.05, 'maxX': 3.05, 'minZ': 1.0, 'maxZ': 6.6},  # cameras on the entrance wall
     'grid': {'columns': 13, 'rows': 12},
     'projectDrawer': 'CAJON_C07_F06',
     'drawerTravel': 0.34,

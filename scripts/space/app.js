@@ -25,6 +25,7 @@ import { addDrawerLabels } from "./labels.js";
 import { createCeilingGlow } from "./glow.js";
 import { createSound } from "./sound.js";
 import { createOrb } from "./orb.js";
+import { createCameraWall } from "./cameras.js";
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -70,6 +71,7 @@ const raycaster = new THREE.Raycaster(),
 const hotspot = $("#projectHotspot");
 let folders = null; // kraft folders of drawer 023 (scripts/space/folders.js)
 let figure = null; // a person made of light points, at the centre (scripts/space/figure.js)
+let cameraWall = null; // security cameras on the entrance wall (scripts/space/cameras.js)
 let ivy = null; // PLANTIMANÍA (scripts/space/ivy.js)
 let ivyLeft = false; // tests: reached the green, stayed here (?sinsalida)
 let labelCount = 0; // stickers and name cards on the named drawers
@@ -408,6 +410,8 @@ function tap(clientX, clientY) {
   if (intro) return finishIntro();
   if (ivy && ivy.stage >= 2) return; // the ivy has the room now
   const hit = pick(clientX, clientY);
+  // The cameras turn to the touched point for a moment.
+  cameraWall?.setPointer(raycaster.ray, "touch");
   if (hit?.kind === "folder") openProject(hit.index);
   else if (hit?.kind === "drawer") {
     const d = hit.drawer;
@@ -445,6 +449,7 @@ function hover(x, y) {
   if (intro) return;
   const hit = pick(x, y);
   figure?.setPointer(raycaster.ray);
+  cameraWall?.setPointer(raycaster.ray, "mouse");
   folders?.setHovered(hit?.kind === "folder" ? hit.index : -1);
   invalidate();
   canvas.classList.toggle(
@@ -715,6 +720,9 @@ function renderFrame(time) {
     if (animating && figureFrustum.intersectsSphere(figure.bounds))
       drawerMoving = true;
   }
+  // The camera wall watches the cursor, or the visitor.
+  if (cameraWall?.update(dt, { camera, reduced: reduced.matches }))
+    drawerMoving = true;
   if (folders) {
     folders.group.visible = projectDrawer.offset > 0.01;
     if (folders.group.visible && folders.update(dt, projectDrawer.acc))
@@ -730,6 +738,7 @@ function renderFrame(time) {
       ? Math.max(0, 1 - (camera.position.distanceTo(FIGURE_AT) - 0.6) / 5)
       : 0,
     stir: figure?.stir ?? 0,
+    servo: cameraWall?.state.speed ?? 0,
   });
   room.updateMatrixWorld(true);
   camera.updateMatrixWorld();
@@ -1069,7 +1078,7 @@ async function start() {
     camera.quaternion.fromArray(config.camera.quaternion);
     // Every download runs at the same time; the folders are drawn meanwhile.
     const folderBuild = prepareFolders();
-    const [gltf, lightmaps, environment, carpet] = await Promise.all([
+    const [gltf, lightmaps, environment, carpet, cameraModel] = await Promise.all([
       new GLTFLoader()
         .setMeshoptDecoder(MeshoptDecoder)
         .loadAsync("assets/models/room.glb", (event) => {
@@ -1079,6 +1088,11 @@ async function start() {
       loadLightmaps(),
       loadEnvironment(),
       loadCarpet(),
+      // The security cameras of the entrance wall (scripts/space/cameras.js).
+      new GLTFLoader()
+        .setMeshoptDecoder(MeshoptDecoder)
+        .loadAsync("assets/models/camera.glb")
+        .catch(() => null),
     ]);
     if (environment) {
       scene.environment = environment.texture;
@@ -1147,6 +1161,7 @@ async function start() {
       ivy = createIvy(scene, plantDrawer, sharedUniforms, {
         onGreen: leaveForPlantimania,
       });
+    if (cameraModel) cameraWall = createCameraWall(scene, cameraModel);
     figure = createFigure(FIGURE_AT, (await figurePoints) ?? undefined);
     scene.add(figure.object, figure.shadow, figure.pool);
     wallTitle = createWallTitle();
@@ -1610,6 +1625,7 @@ export function getRoomState() {
     ivy: ivy ? { stage: ivy.stage, leaves: ivy.leaves, left: ivyLeft } : null,
     labels: labelCount,
     building: Boolean(reveal && !reveal.finished),
+    cameras: cameraWall?.state ?? null,
     figure: figure
       ? {
           points: figure.object.geometry.attributes.position.count,
