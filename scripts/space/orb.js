@@ -80,6 +80,8 @@ export function createOrb(canvas, { onOpen, onHold } = {}) {
     h = 0;
   let holding = false,
     held = 0, // seconds held (decays when released)
+    pressAt = 0,
+    heldAtPress = 0,
     burstAt = -1, // < 0 until it bursts, then seconds since
     clock = 0,
     turn = 0,
@@ -171,11 +173,11 @@ export function createOrb(canvas, { onOpen, onHold } = {}) {
 
   function tick(now) {
     frame = 0;
-    const real = (now - (last || now)) / 1000; // the hold counts real time
-    const dt = Math.min(0.05, real); // motion stays smooth on a slow frame
+    const dt = Math.min(0.05, (now - (last || now)) / 1000); // smooth on a slow frame
     last = now;
     if (burstAt < 0) {
-      held = holding ? held + Math.min(real, 0.5) : Math.max(0, held - dt * 1.5);
+      // While held, the clock decides (not the frames): exactly 3 s.
+      held = holding ? heldAtPress + (now - pressAt) / 1000 : Math.max(0, held - dt * 1.5);
       if (held >= HOLD) {
         burstAt = 1e-4; // seconds since the burst, in real time
         onOpen?.();
@@ -220,7 +222,12 @@ export function createOrb(canvas, { onOpen, onHold } = {}) {
       cy = y;
     },
     hold(down) {
-      if (burstAt < 0) holding = down;
+      if (burstAt >= 0 || down === holding) return;
+      holding = down;
+      if (down) {
+        pressAt = performance.now();
+        heldAtPress = held;
+      }
     },
     get holding() {
       return holding;
