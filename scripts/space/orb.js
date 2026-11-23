@@ -81,6 +81,7 @@ export function createOrb(canvas, { onOpen, onHold } = {}) {
   let holding = false,
     held = 0, // seconds held (decays when released)
     pressAt = 0,
+    timer = 0,
     heldAtPress = 0,
     burstAt = -1, // < 0 until it bursts, then seconds since
     clock = 0,
@@ -178,10 +179,7 @@ export function createOrb(canvas, { onOpen, onHold } = {}) {
     if (burstAt < 0) {
       // While held, the clock decides (not the frames): exactly 3 s.
       held = holding ? heldAtPress + (now - pressAt) / 1000 : Math.max(0, held - dt * 1.5);
-      if (held >= HOLD) {
-        burstAt = 1e-4; // seconds since the burst, in real time
-        onOpen?.();
-      }
+      if (held >= HOLD) open();
     } else burstAt += dt;
     const k = Math.min(1, held / HOLD);
     onHold?.(burstAt >= 0 ? 0 : k);
@@ -196,6 +194,14 @@ export function createOrb(canvas, { onOpen, onHold } = {}) {
       return;
     }
     if (running) frame = requestAnimationFrame(tick);
+  }
+  /** The burst: once, the moment the hold reaches 3 s. */
+  function open() {
+    if (burstAt >= 0) return;
+    clearTimeout(timer);
+    held = Math.max(held, HOLD);
+    burstAt = 1e-4; // seconds since the burst, in real time
+    onOpen?.();
   }
   function stop() {
     running = false;
@@ -223,10 +229,20 @@ export function createOrb(canvas, { onOpen, onHold } = {}) {
     },
     hold(down) {
       if (burstAt >= 0 || down === holding) return;
-      holding = down;
+      const now = performance.now();
       if (down) {
-        pressAt = performance.now();
+        holding = true;
+        pressAt = now;
         heldAtPress = held;
+        // A timer, not the frames, decides: it opens at exactly 3 s even
+        // if the page draws slowly.
+        clearTimeout(timer);
+        timer = setTimeout(() => holding && open(), (HOLD - heldAtPress) * 1000);
+      } else {
+        held = heldAtPress + (now - pressAt) / 1000;
+        holding = false;
+        clearTimeout(timer);
+        if (held >= HOLD) open();
       }
     },
     get holding() {
