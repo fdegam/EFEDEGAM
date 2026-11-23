@@ -1289,7 +1289,8 @@ function awaitEnter() {
   const [x, y] = orbPoint();
   orb.show(x, y);
   placeOrb();
-  button.focus({ preventScroll: true });
+  // No automatic focus (it would underline the label): Space and Enter work
+  // anywhere, and Tab reaches the button.
   announce("Sala preparada. Mantén pulsado tres segundos para abrir.");
   const press = (event) => {
     if (event.type === "keydown") {
