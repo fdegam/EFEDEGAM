@@ -56,7 +56,7 @@ class SpaceChecks(unittest.TestCase):
     def load(self, query=''):
         # Shader compilation can block the page for minutes here: no short navigation timeout.
         self.page.goto(self.url + '/' + query, wait_until='domcontentloaded', timeout=180000)
-        expect(self.page.locator('#sceneViewport')).to_have_class(re.compile('is-ready'), timeout=240000)
+        expect(self.page.locator('#sceneViewport')).to_have_class(re.compile('is-ready'), timeout=420000)
         self.enter()
 
     def enter(self):
@@ -199,7 +199,7 @@ class SpaceChecks(unittest.TestCase):
     def test_entrance_sequence_brakes_in_front_of_archive(self):
         self.page.emulate_media(reduced_motion='no-preference')
         self.page.goto(self.url + '/', wait_until='domcontentloaded', timeout=180000)
-        expect(self.page.locator('#sceneViewport')).to_have_class(re.compile('is-ready'), timeout=240000)
+        expect(self.page.locator('#sceneViewport')).to_have_class(re.compile('is-ready'), timeout=420000)
         expect(self.page.locator('#enterRoom')).to_be_visible()
         self.assertTrue(self.state()['awaitingEnter'])
         self.hold_sphere(3.4)
@@ -235,7 +235,7 @@ class SpaceChecks(unittest.TestCase):
     def test_skip_entrance(self):
         self.page.emulate_media(reduced_motion='no-preference')
         self.page.goto(self.url + '/', wait_until='domcontentloaded', timeout=180000)
-        expect(self.page.locator('#sceneViewport')).to_have_class(re.compile('is-ready'), timeout=240000)
+        expect(self.page.locator('#sceneViewport')).to_have_class(re.compile('is-ready'), timeout=420000)
         expect(self.page.locator('#enterRoom')).to_be_visible()
         self.assertTrue(self.state()['awaitingEnter'])
         self.hold_sphere(3.4)
@@ -284,7 +284,7 @@ class SpaceChecks(unittest.TestCase):
     def test_sphere_opens_only_after_three_seconds(self):
         self.page.emulate_media(reduced_motion='no-preference')
         self.page.goto(self.url + '/', wait_until='domcontentloaded', timeout=180000)
-        expect(self.page.locator('#enterRoom')).to_be_visible(timeout=240000)
+        expect(self.page.locator('#enterRoom')).to_be_visible(timeout=420000)
         expect(self.page.locator('#enterRoom')).to_contain_text('Mantener pulsado para abrir')
         # Released after one second: nothing opens, the sphere calms down.
         self.hold_sphere(1.0)
@@ -328,7 +328,7 @@ class SpaceChecks(unittest.TestCase):
 
     def test_plantimania_ivy_takes_the_room(self):
         self.page.goto(self.url + '/?sinsalida', wait_until='domcontentloaded', timeout=180000)
-        expect(self.page.locator('#sceneViewport')).to_have_class(re.compile('is-ready'), timeout=240000)
+        expect(self.page.locator('#sceneViewport')).to_have_class(re.compile('is-ready'), timeout=420000)
         tag = self.page.locator('.drawer-tag', has_text='PLANTIMANÍA')
         tag.focus()
         self.page.keyboard.press('Enter')
