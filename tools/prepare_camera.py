@@ -23,7 +23,7 @@ import bpy
 
 src = Path(sys.argv[-2] if len(sys.argv) > 2 else sys.argv[-1])
 root = Path(sys.argv[-1]) if len(sys.argv) > 2 else Path(__file__).resolve().parents[1]
-SCALE = 2.6  # the model's housing is 9.6 cm; a real one is about 25 cm
+SCALE = 4.2  # the model's housing is 9.6 cm; the photo's are about 40 cm
 
 BASE = {"Placa de pared", "Tornillos pared", "Base del brazo", "Brazo", "Copa rótula", "Anillo de bloqueo"}
 DROP = {"Tornillos tapa"}  # 896 triangles nobody can see from the room

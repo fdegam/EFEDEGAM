@@ -13,17 +13,17 @@ import { applyReveal } from "./reveal.js";
  * moment later than its neighbours, so they react one after another.
  *
  * Everything is instanced: one draw call per material (14), ~5,500
- * triangles per camera. Lit by the room's panorama, they follow the light
+ * triangles per camera; 28 cameras, each housing about 40 cm long. Lit by the room's panorama, they follow the light
  * of the room (the Ctrl key) and the construction wave (applyReveal).
  */
 const WALL_Z = 7.192; // inner face of the entrance wall
-const PLATE = 0.198; // the model's wall plate lies this far behind its origin
-const COLS = 8,
-  ROWS = 5;
-const X0 = -2.73,
-  X1 = 2.73; // centres of the outer columns
-const Y0 = 0.52,
-  Y1 = 2.2; // heights of the lowest and highest rows
+const PLATE = 0.319; // the model's wall plate lies this far behind its origin
+const COLS = 7,
+  ROWS = 4;
+const X0 = -2.64,
+  X1 = 2.64; // centres of the outer columns
+const Y0 = 0.78,
+  Y1 = 2.16; // heights of the lowest and highest rows
 const YAW = THREE.MathUtils.degToRad(70);
 const PITCH_UP = THREE.MathUtils.degToRad(30),
   PITCH_DOWN = THREE.MathUtils.degToRad(48);
@@ -52,8 +52,8 @@ function shadowTexture() {
   c.width = c.height = 128;
   const g = c.getContext("2d");
   const grad = g.createRadialGradient(64, 64, 4, 64, 64, 64);
-  grad.addColorStop(0, "rgba(0,0,0,0.55)");
-  grad.addColorStop(0.5, "rgba(0,0,0,0.22)");
+  grad.addColorStop(0, "rgba(0,0,0,0.3)");
+  grad.addColorStop(0.45, "rgba(0,0,0,0.12)");
   grad.addColorStop(1, "rgba(0,0,0,0)");
   g.fillStyle = grad;
   g.fillRect(0, 0, 128, 128);
@@ -121,7 +121,7 @@ export function createCameraWall(scene, gltf) {
   cams.forEach((cam, i) => bases.forEach((b) => b.setMatrixAt(i, cam.mount)));
 
   // Contact shadows on the wall.
-  const shadowGeo = new THREE.PlaneGeometry(0.5, 0.42);
+  const shadowGeo = new THREE.PlaneGeometry(0.62, 0.78); // falls below: light from the ceiling
   const shadowMat = new THREE.MeshBasicMaterial({
     map: shadowTexture(),
     transparent: true,
@@ -135,7 +135,7 @@ export function createCameraWall(scene, gltf) {
   cams.forEach((cam, i) => {
     const p = cam.mount.elements;
     m.compose(
-      new THREE.Vector3(p[12], p[13] - 0.04, WALL_Z - 0.003),
+      new THREE.Vector3(p[12], p[13] - 0.2, WALL_Z - 0.003),
       facing,
       new THREE.Vector3(1, 1, 1),
     );
