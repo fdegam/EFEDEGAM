@@ -484,16 +484,9 @@ function startIntro() {
   const centre = projectDrawer.node.getWorldPosition(new THREE.Vector3());
   centre.z += 0.05; // the wave is born at the front of drawer 023
   reveal = createReveal(scene, revealMeshes(), centre);
-  if (!reduced.matches) {
-    sound.build(BUILD_ZONES);
-    // Each zone's twelve tubes start with the panels' own flicker.
-    sound.tubes(
-      BUILD_ZONES.zones.flatMap((z) =>
-        Array.from({ length: 12 }, () => z + Math.random() * BUILD_ZONES.flicker),
-      ),
-      true,
-    );
-  }
+  // The entrance sound (burst, wave, tubes by zone) is anchored to this
+  // instant: if the audio only starts later, it joins where the room is.
+  if (!reduced.matches) sound.intro(intro.start, BUILD_ZONES);
   document.body.classList.add("is-intro");
   $("#introTitle").hidden = false;
   $("#skipIntro").hidden = false;
@@ -727,7 +720,8 @@ function renderFrame(time) {
     if (folders.group.visible && folders.update(dt, projectDrawer.acc))
       drawerMoving = true;
   }
-  sound.setPower(revealState().power);
+  // The hum follows the room's light, once there is a room.
+  if (!awaitingEnter) sound.setPower(revealState().power);
   sound.update(dt, {
     drawerSpeed: intro ? 0 : drawerSpeed,
     closing,
@@ -1608,6 +1602,7 @@ export function getRoomState() {
     awaitingEnter,
     entrance: orb ? { holding: orb.holding, held: orb.held, opened: orb.opened } : null,
     sound: {
+      intro: sound.introState,
       muted: sound.muted,
       created: sound.created,
       running: sound.running,

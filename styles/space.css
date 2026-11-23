@@ -233,6 +233,17 @@ button:active:not(:disabled) {
   -webkit-user-select: none;
   user-select: none;
 }
+/* Not a regular button: no white hover fill, no press jump, no ring. */
+#enterRoom,
+#enterRoom:hover,
+#enterRoom:active,
+#enterRoom:focus {
+  border: 0;
+  background: none;
+  box-shadow: none;
+  outline: none;
+  transform: translate(-50%, -60px);
+}
 .enter-label {
   position: absolute;
   left: 0;

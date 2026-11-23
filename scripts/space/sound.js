@@ -38,7 +38,7 @@ export function createSound() {
   let ctx = null;
   let master, hum, hiss, slide, slideFilter, particles, particlesFilter;
   let noise = null;
-  let lastPower = 1;
+  let lastPower = 0; // silent until the room opens (app.js sets it)
   let chargeVoice = null;
   let grainClock = 0;
   const listeners = new Set();
@@ -129,6 +129,7 @@ export function createSound() {
     loop().connect(particlesFilter).connect(particles).connect(master);
 
     setPower(lastPower, true);
+    ctx.addEventListener?.("statechange", playIntro);
     listeners.forEach((fn) => fn());
   }
   function loop() {
@@ -188,9 +189,12 @@ export function createSound() {
 
   function unlock() {
     if (!ctx) build();
-    if (ctx && !muted && ctx.state !== "running") ctx.resume().catch(() => {});
+    if (ctx && !muted && ctx.state !== "running")
+      ctx.resume().then(playIntro, () => {});
+    else playIntro();
   }
-  for (const name of ["pointerdown", "keydown", "touchstart"])
+  // On a phone a finger only counts as a gesture when it lifts.
+  for (const name of ["pointerdown", "pointerup", "keydown", "touchend", "click"])
     addEventListener(name, unlock, { capture: true, passive: true });
   document.addEventListener("visibilitychange", () => {
     if (!ctx) return;
@@ -201,6 +205,142 @@ export function createSound() {
   // Built at once only where the browser already allows sound (an earlier
   // visit with activity); otherwise on the first gesture, which avoids a warning.
   if (!muted && navigator.userActivation?.hasBeenActive) build();
+
+  /* The entrance sound (see intro()). */
+  let pendingIntro = null,
+    introState = null;
+  function playIntro() {
+    const run = pendingIntro;
+    if (!run || !ctx || muted || ctx.state !== "running") return;
+    pendingIntro = null;
+    const t = ctx.currentTime;
+    const elapsed = (performance.now() - run.startMs) / 1000;
+    const T0 = t - elapsed; // the burst, in the audio clock (may be past)
+    const [w0, w1] = run.wave.map((v) => T0 + v / 1000);
+    introState = { elapsed: Math.round(elapsed * 1000) / 1000, played: [] };
+    if (elapsed > 4.5) return; // the room is long built: only the hum
+    const ease = (u) => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2);
+    const future = (at) => at >= t - 0.02;
+
+    // A bus with its own small hall, so it all sounds like the room.
+    const bus = ctx.createGain();
+    const hall = ctx.createConvolver();
+    const len = Math.floor(ctx.sampleRate * 2.6);
+    const ir = ctx.createBuffer(2, len, ctx.sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const data = ir.getChannelData(ch);
+      for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.2);
+    }
+    hall.buffer = ir;
+    const wet = ctx.createGain();
+    wet.gain.value = 0.35;
+    bus.connect(master);
+    bus.connect(hall).connect(wet).connect(master);
+    const end = w1 + 3;
+
+    // 1 · The burst: a soft deep thump and a bright crackle of particles.
+    if (future(T0)) {
+      const o = ctx.createOscillator();
+      o.frequency.setValueAtTime(70, T0);
+      o.frequency.exponentialRampToValueAtTime(34, T0 + 0.9);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, T0);
+      g.gain.linearRampToValueAtTime(0.2, T0 + 0.02);
+      g.gain.exponentialRampToValueAtTime(1e-4, T0 + 1.2);
+      o.connect(g).connect(bus);
+      o.start(T0);
+      o.stop(T0 + 1.3);
+      for (let k = 0; k < 40; k++) {
+        const at = T0 + Math.pow(Math.random(), 2) * 0.6;
+        const n = ctx.createBufferSource();
+        n.buffer = noise;
+        const f = ctx.createBiquadFilter();
+        f.type = "bandpass";
+        f.frequency.value = 2500 + Math.random() * 6000;
+        f.Q.value = 3;
+        const e = ctx.createGain();
+        const l = 0.01 + Math.random() * 0.04;
+        e.gain.setValueAtTime(0, at);
+        e.gain.linearRampToValueAtTime(0.03 + Math.random() * 0.05, at + 0.002);
+        e.gain.exponentialRampToValueAtTime(1e-4, at + l);
+        n.connect(f).connect(e).connect(bus);
+        n.start(at, Math.random() * 1.5, l + 0.05);
+      }
+      introState.played.push("burst");
+    }
+
+    // 2 · The wave: a cold airy sweep and a rising chord, cut to what is left.
+    const from = Math.max(t, w0);
+    if (from < w1 - 0.05) {
+      const u0 = (from - w0) / (w1 - w0);
+      const span = w1 - from;
+      const part = (a, b) =>
+        Float32Array.from({ length: 48 }, (_, i) => a * Math.pow(b / a, ease(u0 + ((1 - u0) * i) / 47)));
+      const level = (u, peak) => (u < 0.5 ? (peak * u) / 0.5 : peak - (peak - peak * 0.43) * ((u - 0.5) / 0.5));
+      const air = ctx.createBufferSource();
+      air.buffer = noise;
+      air.loop = true;
+      const band = ctx.createBiquadFilter();
+      band.type = "bandpass";
+      band.Q.value = 2.2;
+      band.frequency.setValueCurveAtTime(part(160, 5200), from, span);
+      const ag = ctx.createGain();
+      ag.gain.setValueAtTime(level(u0, 0.07), from);
+      if (u0 < 0.5) ag.gain.linearRampToValueAtTime(0.07, w0 + (w1 - w0) * 0.5);
+      ag.gain.linearRampToValueAtTime(0.03, w1);
+      ag.gain.linearRampToValueAtTime(0, w1 + 0.9);
+      air.connect(band).connect(ag).connect(bus);
+      air.start(from, Math.random());
+      air.stop(end);
+      [523.25, 783.99, 1046.5, 1567.98].forEach((f, i) => {
+        const o = ctx.createOscillator();
+        o.type = i % 2 ? "triangle" : "sine";
+        o.detune.value = (i - 1.5) * 6;
+        o.frequency.setValueCurveAtTime(part(f * 0.5, f), from, span);
+        const g = ctx.createGain();
+        const peak = 0.012 / (1 + i * 0.6);
+        g.gain.setValueAtTime(Math.min(peak, (peak * u0) / 0.55), from);
+        g.gain.linearRampToValueAtTime(peak, Math.max(from, w0 + (w1 - w0) * 0.55));
+        g.gain.linearRampToValueAtTime(0, w1 + 1.2);
+        o.connect(g).connect(bus);
+        o.start(from);
+        o.stop(end);
+      });
+      // Glints along the edges, panned across the room.
+      for (let k = 0; k < 70; k++) {
+        let u;
+        do u = Math.random();
+        while (Math.random() > 6 * u * (1 - u) * 0.66);
+        const at = w0 + u * (w1 - w0);
+        if (!future(at)) continue;
+        const o = ctx.createOscillator();
+        o.frequency.value = 2400 + ease(u) * 5600 + Math.random() * 1400;
+        const g = ctx.createGain();
+        const l = 0.04 + Math.random() * 0.12;
+        g.gain.setValueAtTime(0, at);
+        g.gain.linearRampToValueAtTime(0.006 + Math.random() * 0.01, at + 0.004);
+        g.gain.exponentialRampToValueAtTime(1e-4, at + l);
+        const pan = ctx.createStereoPanner();
+        pan.pan.value = (Math.random() * 2 - 1) * (0.3 + 0.6 * u);
+        o.connect(g).connect(pan).connect(bus);
+        o.start(at);
+        o.stop(at + l + 0.05);
+      }
+      introState.played.push("wave");
+    }
+
+    // 3 · The tubes coming on, zone by zone (twelve per zone).
+    let tubesLeft = 0;
+    for (const z of run.zones)
+      for (let k = 0; k < 12; k++) {
+        const at = T0 + (z + Math.random() * run.flicker) / 1000;
+        if (!future(at)) continue;
+        tubeClick(at, 1);
+        if (Math.random() < 0.5) tubeClick(at + 0.06 + Math.random() * 0.12, 0.6);
+        tubesLeft++;
+      }
+    if (tubesLeft) introState.played.push("tubes");
+  }
 
   return {
     get muted() {
@@ -283,102 +423,26 @@ export function createSound() {
       });
     },
     /**
-     * The construction's light wave (timings from reveal.js): a soft low
-     * pulse as it is born in drawer 023, a cold airy sweep that rises and
-     * opens with the wave's own easing, crystalline glints as it runs along
-     * the edges (densest where the wave is fastest) and a long, spacious
-     * tail into the tubes coming on.
+     * The entrance's sound, anchored to the moment the sphere bursts and
+     * the construction starts (`startMs`, in performance.now() time). If
+     * the audio already runs, it all plays from the start; if it only
+     * starts later (on a phone a finger counts as a gesture when it lifts)
+     * it joins where the animation is: what is past is skipped and the
+     * sweep is cut to end with the wave. Never out of step.
      */
-    build({ wave: [w0, w1] }) {
-      // Scheduled even if the context is still resuming from the gesture.
-      if (!ctx || muted) return;
-      const t = ctx.currentTime;
-      const start = t + w0 / 1000;
-      const d = (w1 - w0) / 1000;
-      const ease = (u) => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2);
-      const curve = (from, to) =>
-        Float32Array.from({ length: 64 }, (_, i) => from * Math.pow(to / from, ease(i / 63)));
-      // A bus with its own small hall, so the wave sounds like the room.
-      const bus = ctx.createGain();
-      bus.gain.value = 1;
-      const hall = ctx.createConvolver();
-      const len = Math.floor(ctx.sampleRate * 2.6);
-      const ir = ctx.createBuffer(2, len, ctx.sampleRate);
-      for (let ch = 0; ch < 2; ch++) {
-        const data = ir.getChannelData(ch);
-        for (let i = 0; i < len; i++)
-          data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.2);
-      }
-      hall.buffer = ir;
-      const wet = ctx.createGain();
-      wet.gain.value = 0.35;
-      bus.connect(master);
-      bus.connect(hall).connect(wet).connect(master);
-      const stopAt = start + d + 3;
-
-      // 1 · Birth: a soft, deep pulse.
-      const thump = ctx.createOscillator();
-      thump.frequency.setValueAtTime(64, start);
-      thump.frequency.exponentialRampToValueAtTime(38, start + 1.1);
-      const thumpGain = ctx.createGain();
-      thumpGain.gain.setValueAtTime(0, start);
-      thumpGain.gain.linearRampToValueAtTime(0.16, start + 0.06);
-      thumpGain.gain.exponentialRampToValueAtTime(1e-4, start + 1.4);
-      thump.connect(thumpGain).connect(bus);
-      thump.start(start);
-      thump.stop(start + 1.5);
-
-      // 2 · The sweep: air through a band that opens as the wave grows.
-      const air = ctx.createBufferSource();
-      air.buffer = noise;
-      air.loop = true;
-      const band = ctx.createBiquadFilter();
-      band.type = "bandpass";
-      band.Q.value = 2.2;
-      band.frequency.setValueCurveAtTime(curve(160, 5200), start, d);
-      const airGain = ctx.createGain();
-      airGain.gain.setValueAtTime(0, start);
-      airGain.gain.linearRampToValueAtTime(0.07, start + d * 0.5);
-      airGain.gain.linearRampToValueAtTime(0.03, start + d);
-      airGain.gain.linearRampToValueAtTime(0, start + d + 0.9);
-      air.connect(band).connect(airGain).connect(bus);
-      air.start(start, Math.random());
-      air.stop(stopAt);
-
-      // 3 · A cold, glassy chord that rises with the wave (slightly detuned).
-      [523.25, 783.99, 1046.5, 1567.98].forEach((f, i) => {
-        const o = ctx.createOscillator();
-        o.type = i % 2 ? "triangle" : "sine";
-        o.detune.value = (i - 1.5) * 6;
-        o.frequency.setValueCurveAtTime(curve(f * 0.5, f), start, d);
-        const g = ctx.createGain();
-        g.gain.setValueAtTime(0, start);
-        g.gain.linearRampToValueAtTime(0.012 / (1 + i * 0.6), start + d * 0.55);
-        g.gain.linearRampToValueAtTime(0, start + d + 1.2);
-        o.connect(g).connect(bus);
-        o.start(start);
-        o.stop(stopAt);
-      });
-
-      // 4 · Glints along the edges, panned across the room.
-      for (let k = 0; k < 70; k++) {
-        let u;
-        do u = Math.random();
-        while (Math.random() > 6 * u * (1 - u) * 0.66); // denser mid-wave
-        const when = start + u * d;
-        const o = ctx.createOscillator();
-        o.frequency.value = 2400 + ease(u) * 5600 + Math.random() * 1400;
-        const g = ctx.createGain();
-        const len2 = 0.04 + Math.random() * 0.12;
-        g.gain.setValueAtTime(0, when);
-        g.gain.linearRampToValueAtTime(0.006 + Math.random() * 0.01, when + 0.004);
-        g.gain.exponentialRampToValueAtTime(1e-4, when + len2);
-        const pan = ctx.createStereoPanner();
-        pan.pan.value = (Math.random() * 2 - 1) * (0.3 + 0.6 * u);
-        o.connect(g).connect(pan).connect(bus);
-        o.start(when);
-        o.stop(when + len2 + 0.05);
-      }
+    intro(startMs, { wave, zones, flicker }) {
+      pendingIntro = { startMs, wave, zones, flicker };
+      this.charge(0);
+      playIntro();
+    },
+    /** Kept for the debug path: the entrance sound starting now. */
+    build(timing) {
+      pendingIntro = { startMs: performance.now(), ...timing };
+      playIntro();
+    },
+    /** For tests: how the entrance sound was scheduled (or not yet). */
+    get introState() {
+      return introState;
     },
     /** Called every rendered frame with what is moving in the room. */
     update(dt, { drawerSpeed = 0, closing = false, ivyRate = 0, figureNear = 0, stir = 0 }) {
