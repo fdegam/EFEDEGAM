@@ -313,7 +313,7 @@ class SpaceChecks(unittest.TestCase):
         self.wait_state('s.about')
         expect(self.page.locator('#aboutPanel')).to_be_visible()
         expect(self.page.locator('#aboutTitle')).to_contain_text('Sobre mí')
-        self.wait_state('Math.abs(s.camera.position[1] - 1.58) < 0.01')
+        self.wait_state('Math.abs(s.camera.position[1] - 1.6) < 0.01')
         self.page.keyboard.press('Escape')
         self.wait_state('!s.about')
         expect(self.page.locator('#aboutPanel')).to_be_hidden()

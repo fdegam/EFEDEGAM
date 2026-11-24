@@ -1019,7 +1019,7 @@ body.ivy-invasion .drawer-panel {
   position: absolute;
   inset: -60px -80px -60px -60px;
   z-index: -1;
-  background: radial-gradient(closest-side, #0b0f13b8, #0b0f1366 60%, transparent);
+  background: radial-gradient(closest-side, #0b0f1355, transparent);
   filter: blur(8px);
   opacity: 0;
   transition: opacity 0.6s ease;
@@ -1086,6 +1086,25 @@ body.ivy-invasion .drawer-panel {
 .about-panel.is-open .about-close {
   opacity: 1;
 }
+/* The room dims towards the text, like the owner's dark reference: the
+   bust stays bright on the left, the text reads on the right. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  background: linear-gradient(90deg, #070a0d00 22%, #070a0d99 48%, #070a0de6 78%);
+  opacity: 0;
+  transition: opacity 0.9s ease;
+}
+body.about-open::after {
+  opacity: 1;
+}
+#aboutPanel .about-close:focus-visible {
+  outline: 1px solid #eef3f8;
+  outline-offset: 3px;
+}
 /* The thin line from the bust to the title. */
 .about-line {
   position: fixed;
@@ -1119,6 +1138,11 @@ body.ivy-invasion .drawer-panel {
 body.about-open .space-bottom,
 body.about-open .drawer-panel {
   visibility: hidden;
+}
+@media (max-width: 760px), (orientation: portrait) {
+  body::after {
+    background: linear-gradient(180deg, #070a0d00 30%, #070a0daa 52%, #070a0de6 75%);
+  }
 }
 @media (max-width: 760px) {
   /* Phones: the bust above, the text below it. */

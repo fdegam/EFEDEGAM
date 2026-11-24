@@ -1465,13 +1465,14 @@ function openAbout() {
   if (dir.lengthSq() < 1e-4) dir.set(0, 0, 1);
   dir.normalize();
   const phone = innerWidth <= 760 || innerHeight > innerWidth;
-  const position = centre.clone().addScaledVector(dir, phone ? 1.75 : 1.3);
-  position.y = 1.58;
+  // Close enough for shoulders and head only.
+  const position = centre.clone().addScaledVector(dir, phone ? 1.4 : 0.98);
+  position.y = 1.6;
   const forward = dir.clone().negate();
   const right = new THREE.Vector3().crossVectors(forward, camera.up).normalize();
   const look = centre.clone();
-  if (phone) look.y -= 0.36;
-  else look.addScaledVector(right, 0.46);
+  if (phone) look.y -= 0.3;
+  else look.addScaledVector(right, 0.34);
   const quaternion = new THREE.Quaternion().setFromRotationMatrix(
     new THREE.Matrix4().lookAt(position, look, camera.up),
   );
