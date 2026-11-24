@@ -34,6 +34,7 @@
     <link rel="modulepreload" href="scripts/space/cameras.js" />
     <link rel="modulepreload" href="scripts/projects.js" />
     <link rel="modulepreload" href="scripts/drawers.js" />
+    <link rel="modulepreload" href="scripts/about.js" />
     <link rel="preload" href="assets/models/room.json" as="fetch" crossorigin />
     <link rel="preload" href="assets/models/room.glb" as="fetch" crossorigin />
     <link rel="preload" href="assets/models/camera.glb" as="fetch" crossorigin />
@@ -129,6 +130,15 @@
           <span class="intro-word">EFEDEGAM</span>
           <span class="intro-sub">ARCHIVO PERSONAL</span>
         </div>
+        <button
+          id="aboutHotspot"
+          class="drawer-tag about-hotspot"
+          type="button"
+          hidden
+          aria-label="Sobre mí: acercarse a la figura de luz"
+        >
+          SOBRE MÍ
+        </button>
         <button id="skipIntro" class="skip-intro" type="button" hidden>
           Saltar entrada
         </button>
@@ -233,6 +243,30 @@
           </p>
         </noscript>
       </div>
+      <!-- «SOBRE MÍ»: opened by pressing the person of light. -->
+      <section
+        id="aboutPanel"
+        class="about-panel"
+        hidden
+        aria-labelledby="aboutTitle"
+      >
+        <button
+          id="closeAbout"
+          class="about-close"
+          type="button"
+          aria-label="Cerrar Sobre mí y volver a la sala"
+        >
+          ×
+        </button>
+        <h2 id="aboutTitle" class="about-title">
+          <span class="about-title-text">Sobre mí</span>
+        </h2>
+        <div id="aboutText" class="about-text"></div>
+      </section>
+      <svg id="aboutLine" class="about-line" aria-hidden="true" hidden>
+        <polyline points="0,0 0,0 0,0" />
+        <rect x="-3" y="-3" width="6" height="6" />
+      </svg>
       <section
         id="drawerPanel"
         class="drawer-panel"

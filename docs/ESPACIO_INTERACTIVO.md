@@ -68,6 +68,14 @@ En la esquina superior izquierda hay una tecla de teclado beige con «Ctrl», co
 
 Los 36 paneles del techo se apagan de forma descoordinada: cada uno recibe un retraso y un parpadeo propios, distintos en cada pulsación (`switchLights` / `updateLights` en `scripts/space/reveal.js`). La luz horneada de la sala sigue a los tubos que quedan encendidos hasta quedar en penumbra (3 %). A oscuras, la figura de puntos brilla con un halo fuerte e ilumina la moqueta a sus pies; la cabecera también se oscurece. Con movimiento reducido el cambio es instantáneo.
 
+### Sobre mí
+
+Pulsar sobre la **figura de luz** abre el «SOBRE MÍ» (`scripts/about.js`, texto editable; ahora provisional). La cámara se acerca a su **busto** (hombros y cabeza), que sigue girando, con el encuadre desplazado para que el busto quede a la izquierda y el texto a su derecha, alineado a la izquierda (en el móvil, el busto arriba y el texto debajo). Como en la referencia del propietario, una **línea fina** sale de un punto del hombro, sube en diagonal y llega al título; se dibuja al llegar la cámara, después el título se revela con un barrido y los párrafos aparecen en cascada. De cerca la figura no se aparta de la cámara. Se cierra con «×», Escape o pulsando fuera del texto, y la cámara vuelve a donde estaba. Para teclado y lector de pantalla hay un botón «Sobre mí» que aparece con el foco.
+
+### Muro de cámaras
+
+La pared de enfrente del archivo está cubierta por **28 cámaras de seguridad** (modelo del propietario, `assets/models/camera.glb`, preparado con `tools/prepare_camera.py`: base fija y cabeza que gira sobre la rótula; 5.500 triángulos y 75 KB). Siguen el punto bajo el cursor; con el ratón quieto unos segundos o en el móvil, miran al visitante, y al tocar la pantalla se giran un momento hacia el punto tocado. Cada una reacciona con un pequeño retraso distinto y un muelle amortiguado, con un zumbido de servo suave. Siguen la luz de la sala (Ctrl) y la onda de construcción. La zona por la que se camina termina a 6,55 m para no atravesarlas.
+
 ### Luz de los paneles
 
 Los paneles emiten algo más que las paredes (`panelEmission` 1,3 en `room.json`) y cada uno tiene un **halo** (`scripts/space/glow.js`): un resplandor suave pegado a los bordes del panel que se derrama sobre la perfilería, como en la foto de referencia del propietario (sin destellos redondos). Bajo cada panel hay además **luz en el aire**: una columna tenue de polvo iluminado, más densa junto al panel y que se desvanece al bajar (1,3 m), calculada en el shader a lo largo de la mirada. Siempre está presente; no se puede quitar. Son capas aditivas instanciadas (36 paneles, una llamada de dibujo cada una), sin postproceso, y siguen exactamente el estado de cada tubo: construcción por zonas, tecla Ctrl y parpadeos. Los blancos (lacado de los archivadores y paredes paneladas) tienen un 12 % más de luz y la perfilería un 8 % (`materialTuning`).

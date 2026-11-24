@@ -102,6 +102,7 @@ export function createFigure(position, source = humanPoints()) {
     uFlow: { value: new THREE.Vector3() },
     uStir: { value: 0 },
     uCam: { value: new THREE.Vector3() },
+    uPart: { value: 1 }, // 0: the points do not part around the camera
     uScale: { value: 600 },
     uLight: { value: LIGHT },
   };
@@ -114,6 +115,7 @@ export function createFigure(position, source = humanPoints()) {
       attribute float aSeed, aLayer;
       uniform float uTime, uAngle, uAssemble, uOpacity, uStir, uScale, uLuminous;
       uniform vec3 uFlowPos, uFlow, uCam;
+      uniform float uPart;
       varying float vAlpha, vGlow, vLayer;
       void main() {
         vec3 p = position;
@@ -146,7 +148,7 @@ export function createFigure(position, source = humanPoints()) {
         // Walking through: the points part around the camera.
         vec3 fc = w - uCam;
         float dc = length(fc);
-        float g = pow(clamp(1.0 - dc / 0.95, 0.0, 1.0), 2.0);
+        float g = pow(clamp(1.0 - dc / 0.95, 0.0, 1.0), 2.0) * uPart;
         w += fc / max(dc, 1e-4) * g * 0.55;
         vec4 mv = viewMatrix * vec4(w, 1.0);
         gl_Position = projectionMatrix * mv;
@@ -275,6 +277,7 @@ export function createFigure(position, source = humanPoints()) {
         luminous = 0,
         opacity = 1,
         reduced = false,
+        part = 1,
       },
     ) {
       time += dt;
@@ -309,6 +312,8 @@ export function createFigure(position, source = humanPoints()) {
         Math.min(1, Math.max(0, assemble * 1.4 - 0.4)) *
         (1 - luminous * 0.8);
       uniforms.uCam.value.copy(camera.position);
+      // Seen up close («Sobre mí»), the bust stays whole.
+      uniforms.uPart.value += ((part ?? 1) - uniforms.uPart.value) * Math.min(1, dt * 4);
       uniforms.uScale.value =
         viewportHeight /
         (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));

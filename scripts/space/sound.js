@@ -398,6 +398,16 @@ export function createSound() {
       o2.frequency.setTargetAtTime(140 + 520 * k * k, t, 0.05);
       gain.gain.setTargetAtTime(muted ? 0 : 0.05 * Math.pow(k, 1.4), t, k > 0 ? 0.08 : 0.03);
     },
+    /** «Sobre mí» opening (a soft rising glint) or closing (falling). */
+    about(open) {
+      if (!live()) return;
+      const t = ctx.currentTime;
+      [0, 0.07, 0.14].forEach((d, i) => {
+        const f = open ? 880 * Math.pow(1.5, i) : 1980 / Math.pow(1.5, i);
+        tone(t + d, { freq: f, gain: 0.018 / (1 + i * 0.4), length: 0.5 });
+      });
+      burst(t, { freq: open ? 5200 : 2600, q: 0.7, gain: 0.025, length: 0.25 });
+    },
     /** The «Ctrl» key: down and up of a mechanical switch. */
     keyClick(down = true) {
       if (!live()) return;

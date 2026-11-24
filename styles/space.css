@@ -998,3 +998,150 @@ body.ivy-invasion .keycap,
 body.ivy-invasion .drawer-panel {
   visibility: hidden;
 }
+
+/* «SOBRE MÍ»: pressing the person of light zooms to the bust, which keeps
+   turning on the left; the text sits to its right, aligned left, joined to
+   the bust by a thin line (as in the owner's reference). */
+.about-panel {
+  position: fixed;
+  z-index: 8;
+  left: 50%;
+  top: 22%;
+  width: min(440px, 42vw);
+  padding: 0 0 0 4px;
+  color: #eef3f8;
+  text-align: left;
+  pointer-events: auto;
+}
+.about-panel::before {
+  /* A soft veil behind the text, for contrast with the bright room. */
+  content: "";
+  position: absolute;
+  inset: -60px -80px -60px -60px;
+  z-index: -1;
+  background: radial-gradient(closest-side, #0b0f13b8, #0b0f1366 60%, transparent);
+  filter: blur(8px);
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+.about-title {
+  margin: 0 0 22px;
+  font: 300 clamp(40px, 5.2vw, 76px) / 0.95 var(--sans);
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  overflow: hidden;
+}
+.about-title-text {
+  display: inline-block;
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path 0.7s cubic-bezier(0.7, 0, 0.2, 1) 0.45s;
+}
+.about-text p {
+  margin: 0 0 14px;
+  font: 400 14px / 1.6 var(--sans);
+  max-width: 38ch;
+  opacity: 0;
+  transform: translateY(10px);
+  transition:
+    opacity 0.5s ease,
+    transform 0.5s ease;
+}
+.about-text .about-note {
+  font: 9px var(--mono);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  opacity: 0;
+}
+.about-close {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid #eef3f866;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: 300 18px/1 var(--sans);
+  opacity: 0;
+  transition: opacity 0.4s ease 0.9s;
+}
+#aboutPanel .about-close:hover {
+  background: #eef3f81a;
+}
+.about-panel.is-open::before {
+  opacity: 1;
+}
+.about-panel.is-open .about-title-text {
+  clip-path: inset(0 0 0 0);
+}
+.about-panel.is-open .about-text > * {
+  opacity: 1;
+  transform: none;
+}
+.about-panel.is-open .about-text .about-note {
+  opacity: 0.6;
+}
+.about-panel.is-open .about-close {
+  opacity: 1;
+}
+/* The thin line from the bust to the title. */
+.about-line {
+  position: fixed;
+  inset: 0;
+  z-index: 7;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+.about-line polyline {
+  fill: none;
+  stroke: #eef3f8;
+  stroke-width: 1;
+  opacity: 0.85;
+  stroke-dasharray: var(--len, 600);
+  stroke-dashoffset: var(--len, 600);
+  transition: stroke-dashoffset 0.6s cubic-bezier(0.6, 0, 0.3, 1);
+}
+.about-line rect {
+  fill: #eef3f8;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.about-line.is-open polyline {
+  stroke-dashoffset: 0;
+}
+.about-line.is-open rect {
+  opacity: 1;
+}
+body.about-open .space-bottom,
+body.about-open .drawer-panel {
+  visibility: hidden;
+}
+@media (max-width: 760px) {
+  /* Phones: the bust above, the text below it. */
+  .about-panel {
+    left: 22px;
+    right: 22px;
+    top: auto;
+    bottom: 9vh;
+    width: auto;
+  }
+  .about-title {
+    margin-bottom: 14px;
+  }
+  .about-text p {
+    font-size: 13px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .about-title-text,
+  .about-text p,
+  .about-line polyline,
+  .about-close,
+  .about-panel::before {
+    transition: none;
+  }
+}

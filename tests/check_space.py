@@ -300,6 +300,24 @@ class SpaceChecks(unittest.TestCase):
         self.wait_state('s.entrance.opened && s.intro && !s.awaitingEnter')
         expect(self.page.locator('#loadingState')).to_be_hidden()
 
+    def test_person_of_light_opens_about(self):
+        self.load('?sinparpadeo')
+        # The figure is on screen from the reference view: press it.
+        box = self.page.evaluate('''async () => {
+          const m = await import('./scripts/space/app.js');
+          return m.getRoomState().camera;
+        }''')
+        self.assertIsNotNone(box)
+        self.page.locator('#aboutHotspot').focus()
+        self.page.keyboard.press('Enter')
+        self.wait_state('s.about')
+        expect(self.page.locator('#aboutPanel')).to_be_visible()
+        expect(self.page.locator('#aboutTitle')).to_contain_text('Sobre mí')
+        self.wait_state('Math.abs(s.camera.position[1] - 1.58) < 0.01')
+        self.page.keyboard.press('Escape')
+        self.wait_state('!s.about')
+        expect(self.page.locator('#aboutPanel')).to_be_hidden()
+
     def test_sound_key_mutes_and_remembers(self):
         self.load()
         key = self.page.locator('#soundSwitch')

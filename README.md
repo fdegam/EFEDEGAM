@@ -39,6 +39,8 @@ Si el dispositivo no puede mostrar WebGL, las mismas fichas se pueden consultar 
 | `scripts/space/sound.js`            | Sonido sintetizado: fluorescentes, cajones, hiedra, figura  |
 | `scripts/space/orb.js`              | Esfera de partículas de la entrada (mantener pulsado)       |
 | `scripts/projects.js`               | Fuente editable de las fichas de ejemplo                    |
+| `scripts/about.js`                  | Texto editable del «Sobre mí» (figura de luz)               |
+| `scripts/space/cameras.js`          | Muro de cámaras de seguridad que siguen al visitante        |
 | `scripts/drawers.js`                | Los seis cajones con nombre y su posición                   |
 | `assets/models/`                    | Modelo GLB, texturas de luz y configuración                 |
 | `assets/scene-preview/`             | Imagen de respaldo y procedencia                            |

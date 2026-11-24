@@ -5,6 +5,7 @@ import { MeshoptDecoder } from "../../vendor/three/addons/libs/meshopt_decoder.m
 import { RoomNavigation } from "./navigation.js";
 import { projects } from "../projects.js";
 import { specialDrawers } from "../drawers.js";
+import { about } from "../about.js";
 import { buildFolders } from "./folders.js";
 import {
   BUILD,
@@ -71,6 +72,7 @@ const raycaster = new THREE.Raycaster(),
 const hotspot = $("#projectHotspot");
 let folders = null; // kraft folders of drawer 023 (scripts/space/folders.js)
 let figure = null; // a person made of light points, at the centre (scripts/space/figure.js)
+let aboutOpen = false; // «Sobre mí»: zoomed to the bust of the person of light
 let cameraWall = null; // security cameras on the entrance wall (scripts/space/cameras.js)
 let ivy = null; // PLANTIMANÍA (scripts/space/ivy.js)
 let ivyLeft = false; // tests: reached the green, stayed here (?sinsalida)
@@ -266,6 +268,7 @@ function setSelected(d) {
 }
 function focusDrawer(d) {
   if (!ready || projectDialog.open || intro) return;
+  if (aboutOpen) closeAbout({ restore: false });
   if (!selected) returnPose = pose();
   setSelected(d);
   const center = d.node.getWorldPosition(new THREE.Vector3());
@@ -373,6 +376,22 @@ function leaveForPlantimania() {
 /* ------------------------------------------------------------------ */
 /* Picking                                                              */
 /* ------------------------------------------------------------------ */
+/** Distance along `ray` to the person of light (a 26 cm cylinder), or null. */
+function figureHit(ray) {
+  const { origin: o, direction: d } = ray;
+  const ox = o.x - FIGURE_AT.x,
+    oz = o.z - FIGURE_AT.z;
+  const a = d.x * d.x + d.z * d.z;
+  if (a < 1e-8) return null;
+  const b = 2 * (ox * d.x + oz * d.z),
+    c = ox * ox + oz * oz - 0.26 * 0.26;
+  const disc = b * b - 4 * a * c;
+  if (disc < 0) return null;
+  const t = (-b - Math.sqrt(disc)) / (2 * a);
+  if (t < 0.3) return null; // not when walking through it
+  const y = o.y + d.y * t;
+  return y > 0.05 && y < 1.86 ? t : null;
+}
 function pick(clientX, clientY) {
   const bounds = canvas.getBoundingClientRect();
   pointer.set(
@@ -386,6 +405,9 @@ function pick(clientX, clientY) {
       if (!object.visible) return false;
     return true;
   });
+  // The person of light opens «Sobre mí» (its points leave gaps: a cylinder).
+  const tFigure = figure?.object.parent ? figureHit(raycaster.ray) : null;
+  if (tFigure !== null && (!hit || tFigure < hit.distance)) return { kind: "figure" };
   if (!hit) return null;
   // A sticker or name card belongs to its drawer.
   for (let o = hit.object; o; o = o.parent)
@@ -412,6 +434,8 @@ function tap(clientX, clientY) {
   const hit = pick(clientX, clientY);
   // The cameras turn to the touched point for a moment.
   cameraWall?.setPointer(raycaster.ray, "touch");
+  if (aboutOpen) return closeAbout(); // a tap beside the text goes back
+  if (hit?.kind === "figure") return openAbout();
   if (hit?.kind === "folder") openProject(hit.index);
   else if (hit?.kind === "drawer") {
     const d = hit.drawer;
@@ -454,7 +478,8 @@ function hover(x, y) {
   invalidate();
   canvas.classList.toggle(
     "is-over-project",
-    hit?.kind === "folder" || hit?.kind === "drawer",
+    !aboutOpen &&
+      (hit?.kind === "folder" || hit?.kind === "drawer" || hit?.kind === "figure"),
   );
 }
 function placeTag(element, d, hidden) {
@@ -471,8 +496,13 @@ function placeTag(element, d, hidden) {
   element.style.transform = `translate(${(projected.x * 0.5 + 0.5) * innerWidth}px,${(-projected.y * 0.5 + 0.5) * innerHeight}px) translate(-50%,-50%)`;
 }
 function updateHotspots() {
-  const hide = Boolean(selected) || Boolean(intro);
+  const hide = Boolean(selected) || Boolean(intro) || aboutOpen;
   placeTag(hotspot, projectDrawer, hide);
+  if (figure) {
+    projected.set(FIGURE_AT.x, 1.6, FIGURE_AT.z).project(camera);
+    aboutHotspot.hidden = hide || projected.z > 1 || Math.abs(projected.x) > 0.93 || Math.abs(projected.y) > 0.83;
+    aboutHotspot.style.transform = `translate(${(projected.x * 0.5 + 0.5) * innerWidth}px,${(-projected.y * 0.5 + 0.5) * innerHeight}px) translate(-50%,-50%)`;
+  }
   for (const { element, drawer } of tags) placeTag(element, drawer, hide);
 }
 
@@ -709,6 +739,7 @@ function renderFrame(time) {
           ? 1 - (state.power - 0.1) / 0.9
           : Math.min(1, Math.max(0, (1 - state.power) / 0.97)),
       reduced: reduced.matches,
+      part: aboutOpen ? 0 : 1,
     });
     // It turns forever, but only costs frames while it is on screen.
     figureFrustum.setFromProjectionMatrix(
@@ -745,6 +776,7 @@ function renderFrame(time) {
   updateHotspots();
   renderer.render(scene, camera);
   ivy?.render(renderer, camera); // the pixelated ivy, as a mosaic on top
+  if (aboutOpen) placeAboutLine();
   if (moving || journey || drawerMoving || intro) invalidate();
 }
 function resize() {
@@ -1393,6 +1425,120 @@ $("#resetCamera").addEventListener("click", () => {
 $("#skipIntro").addEventListener("click", finishIntro);
 $("#backToExplore").addEventListener("click", () => backToExplore());
 $("#closeDrawerPanel").addEventListener("click", () => backToExplore());
+
+/* ------------------------------------------------------------------ */
+/* «Sobre mí»: the person of light, up close.                          */
+/* ------------------------------------------------------------------ */
+const aboutPanel = $("#aboutPanel"),
+  aboutLine = $("#aboutLine"),
+  aboutHotspot = $("#aboutHotspot");
+let aboutTimer = 0;
+(function fillAbout() {
+  $(".about-title-text").textContent = about.title;
+  const box = $("#aboutText");
+  about.paragraphs.forEach((text, i) => {
+    const p = document.createElement("p");
+    p.textContent = text;
+    p.style.transitionDelay = `${0.75 + i * 0.12}s`;
+    box.append(p);
+  });
+  if (about.provisional) {
+    const note = document.createElement("p");
+    note.className = "about-note";
+    note.textContent = "Texto provisional";
+    note.style.transitionDelay = `${0.75 + about.paragraphs.length * 0.12}s`;
+    box.append(note);
+  }
+})();
+const bust = () => new THREE.Vector3(FIGURE_AT.x, 1.56, FIGURE_AT.z);
+function openAbout() {
+  if (!ready || intro || failed || aboutOpen || (ivy && ivy.stage >= 2)) return;
+  if (selected) setSelected(null);
+  if (!returnPose) returnPose = pose();
+  aboutOpen = true;
+  navigation.setEnabled(false);
+  // Seen from where the visitor stands, at shoulder height; the view is
+  // shifted so the bust sits on the left and the text has the right.
+  const centre = bust();
+  const dir = camera.position.clone().sub(centre);
+  dir.y = 0;
+  if (dir.lengthSq() < 1e-4) dir.set(0, 0, 1);
+  dir.normalize();
+  const phone = innerWidth <= 760 || innerHeight > innerWidth;
+  const position = centre.clone().addScaledVector(dir, phone ? 1.75 : 1.3);
+  position.y = 1.58;
+  const forward = dir.clone().negate();
+  const right = new THREE.Vector3().crossVectors(forward, camera.up).normalize();
+  const look = centre.clone();
+  if (phone) look.y -= 0.36;
+  else look.addScaledVector(right, 0.46);
+  const quaternion = new THREE.Quaternion().setFromRotationMatrix(
+    new THREE.Matrix4().lookAt(position, look, camera.up),
+  );
+  travelTo({ position, quaternion }, 1300);
+  document.body.classList.add("about-open");
+  aboutPanel.hidden = false;
+  aboutLine.hidden = false;
+  clearTimeout(aboutTimer);
+  // The line draws itself once the camera has arrived, then the text.
+  aboutTimer = setTimeout(() => {
+    placeAboutLine();
+    aboutLine.classList.add("is-open");
+    aboutPanel.classList.add("is-open");
+  }, reduced.matches ? 0 : 1150);
+  sound.about?.(true);
+  $("#closeAbout").focus({ preventScroll: true });
+  announce(`${about.title}. ${about.paragraphs.join(" ")}`);
+  invalidate();
+}
+function closeAbout({ restore = true } = {}) {
+  if (!aboutOpen) return;
+  aboutOpen = false;
+  aboutPanel.classList.remove("is-open");
+  aboutLine.classList.remove("is-open");
+  document.body.classList.remove("about-open");
+  clearTimeout(aboutTimer);
+  aboutTimer = setTimeout(() => {
+    aboutPanel.hidden = true;
+    aboutLine.hidden = true;
+  }, reduced.matches ? 0 : 450);
+  navigation.setEnabled(true);
+  if (restore && returnPose) travelTo(returnPose, 1100);
+  returnPose = null;
+  sound.about?.(false);
+  canvas.focus({ preventScroll: true, focusVisible: false });
+  announce("De vuelta en la sala.");
+  invalidate();
+}
+/** The thin line: a point on the bust, a diagonal, then along to the title. */
+function placeAboutLine() {
+  const w = innerWidth,
+    h = innerHeight;
+  aboutLine.setAttribute("viewBox", `0 0 ${w} ${h}`);
+  // A point on the shoulder facing the text (on the axis side, so it does
+  // not dance as the bust turns).
+  const forward = new THREE.Vector3();
+  camera.getWorldDirection(forward);
+  const right = new THREE.Vector3().crossVectors(forward, camera.up).normalize();
+  const p = bust().add(new THREE.Vector3(0, -0.06, 0)).addScaledVector(right, 0.12).project(camera);
+  const ax = (p.x * 0.5 + 0.5) * w,
+    ay = (-p.y * 0.5 + 0.5) * h;
+  const title = $(".about-title-text").getBoundingClientRect();
+  const phone = w <= 760 || h > w;
+  const ex = title.left - (phone ? 0 : 14),
+    ey = phone ? title.top - 12 : title.top + title.height * 0.55;
+  const elbowX = phone ? ex + 28 : ex - 46,
+    elbowY = ey;
+  const pts = [[ax, ay], [elbowX, elbowY], [ex, ey]];
+  const len = Math.hypot(elbowX - ax, elbowY - ay) + Math.hypot(ex - elbowX, ey - elbowY);
+  const line = aboutLine.querySelector("polyline");
+  line.setAttribute("points", pts.map((q) => q.map((v) => v.toFixed(1)).join(",")).join(" "));
+  line.style.setProperty("--len", len.toFixed(1));
+  aboutLine.querySelector("rect").setAttribute("transform", `translate(${ax.toFixed(1)},${ay.toFixed(1)})`);
+}
+$("#closeAbout").addEventListener("click", () => closeAbout());
+aboutHotspot.addEventListener("click", openAbout);
+addEventListener("resize", () => aboutOpen && placeAboutLine());
 $("#toggleDrawer").addEventListener("click", () =>
   setSelectedDrawer(!isOpen(selected)),
 );
@@ -1401,6 +1547,9 @@ addEventListener("keydown", (event) => {
   if (intro && ["Escape", "Enter", " "].includes(event.key)) {
     event.preventDefault();
     finishIntro();
+  } else if (event.key === "Escape" && aboutOpen) {
+    event.preventDefault();
+    closeAbout();
   } else if (event.key === "Escape" && !projectDialog.open && selected) {
     event.preventDefault();
     backToExplore();
@@ -1626,6 +1775,7 @@ export function getRoomState() {
     labels: labelCount,
     building: Boolean(reveal && !reveal.finished),
     cameras: cameraWall?.state ?? null,
+    about: aboutOpen,
     figure: figure
       ? {
           points: figure.object.geometry.attributes.position.count,
