@@ -1465,13 +1465,17 @@ function openAbout() {
   if (dir.lengthSq() < 1e-4) dir.set(0, 0, 1);
   dir.normalize();
   const phone = innerWidth <= 760 || innerHeight > innerWidth;
-  // Close enough for shoulders and head only.
-  const position = centre.clone().addScaledVector(dir, phone ? 1.4 : 0.98);
+  // Close enough for shoulders and head only, whatever the screen: from
+  // the real field of view (taller on phones, see resize()).
+  const vHalf = THREE.MathUtils.degToRad(camera.fov / 2);
+  const hHalf = Math.atan(Math.tan(vHalf) * camera.aspect);
+  const distance = phone ? 0.36 / Math.tan(hHalf) : 0.4 / Math.tan(vHalf);
+  const position = centre.clone().addScaledVector(dir, distance);
   position.y = 1.6;
   const forward = dir.clone().negate();
   const right = new THREE.Vector3().crossVectors(forward, camera.up).normalize();
   const look = centre.clone();
-  if (phone) look.y -= 0.3;
+  if (phone) look.y -= Math.tan(vHalf) * distance * 0.42; // bust in the upper part
   else look.addScaledVector(right, 0.34);
   const quaternion = new THREE.Quaternion().setFromRotationMatrix(
     new THREE.Matrix4().lookAt(position, look, camera.up),
@@ -1479,7 +1483,7 @@ function openAbout() {
   travelTo({ position, quaternion }, 1300);
   document.body.classList.add("about-open");
   aboutPanel.hidden = false;
-  aboutLine.hidden = false;
+  aboutLine.removeAttribute("hidden"); // an SVG element: no .hidden property
   clearTimeout(aboutTimer);
   // The line draws itself once the camera has arrived, then the text.
   aboutTimer = setTimeout(() => {
@@ -1501,7 +1505,7 @@ function closeAbout({ restore = true } = {}) {
   clearTimeout(aboutTimer);
   aboutTimer = setTimeout(() => {
     aboutPanel.hidden = true;
-    aboutLine.hidden = true;
+    aboutLine.setAttribute("hidden", "");
   }, reduced.matches ? 0 : 450);
   navigation.setEnabled(true);
   if (restore && returnPose) travelTo(returnPose, 1100);
