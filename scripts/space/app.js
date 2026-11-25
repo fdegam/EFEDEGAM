@@ -27,6 +27,7 @@ import { createCeilingGlow } from "./glow.js";
 import { createSound } from "./sound.js";
 import { createOrb } from "./orb.js";
 import { createCameraWall } from "./cameras.js";
+import { createBust } from "./bust.js";
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -73,7 +74,9 @@ const hotspot = $("#projectHotspot");
 let folders = null; // kraft folders of drawer 023 (scripts/space/folders.js)
 let figure = null; // a person made of light points, at the centre (scripts/space/figure.js)
 let aboutOpen = false; // «Sobre mí»: zoomed to the bust of the person of light
-let cameraWall = null; // security cameras on the entrance wall (scripts/space/cameras.js)
+let cameraWall = null;
+let bustObject = null; // the iridescent bust that rises out of drawer C11_F05 (scripts/space/bust.js)
+const BUST_DRAWER = "C11_F05"; // «El vacío» // security cameras on the entrance wall (scripts/space/cameras.js)
 let ivy = null; // PLANTIMANÍA (scripts/space/ivy.js)
 let ivyLeft = false; // tests: reached the green, stayed here (?sinsalida)
 let labelCount = 0; // stickers and name cards on the named drawers
@@ -751,6 +754,23 @@ function renderFrame(time) {
     if (animating && figureFrustum.intersectsSphere(figure.bounds))
       drawerMoving = true;
   }
+  // The bust rises out of its drawer, floats and hops while it is open.
+  const bustDrawer = bustObject && drawerById.get(BUST_DRAWER);
+  if (bustObject && bustDrawer) {
+    if (
+      bustObject.update(
+        dt,
+        {
+          node: bustDrawer.node,
+          closedZ: bustDrawer.closedZ,
+          offset: bustDrawer.offset,
+          travel: config.drawerTravel,
+        },
+        reduced.matches,
+      )
+    )
+      drawerMoving = true;
+  }
   // The camera wall watches the cursor, or the visitor.
   if (cameraWall?.update(dt, { camera, reduced: reduced.matches }))
     drawerMoving = true;
@@ -1110,7 +1130,7 @@ async function start() {
     camera.quaternion.fromArray(config.camera.quaternion);
     // Every download runs at the same time; the folders are drawn meanwhile.
     const folderBuild = prepareFolders();
-    const [gltf, lightmaps, environment, carpet, cameraModel] = await Promise.all([
+    const [gltf, lightmaps, environment, carpet, cameraModel, bustModel] = await Promise.all([
       new GLTFLoader()
         .setMeshoptDecoder(MeshoptDecoder)
         .loadAsync("assets/models/room.glb", (event) => {
@@ -1124,6 +1144,11 @@ async function start() {
       new GLTFLoader()
         .setMeshoptDecoder(MeshoptDecoder)
         .loadAsync("assets/models/camera.glb")
+        .catch(() => null),
+      // The bust that rises out of drawer C11_F05 (scripts/space/bust.js).
+      new GLTFLoader()
+        .setMeshoptDecoder(MeshoptDecoder)
+        .loadAsync("assets/models/bust.glb")
         .catch(() => null),
     ]);
     if (environment) {
@@ -1194,6 +1219,7 @@ async function start() {
         onGreen: leaveForPlantimania,
       });
     if (cameraModel) cameraWall = createCameraWall(scene, cameraModel);
+    if (bustModel && drawerById.get(BUST_DRAWER)) bustObject = createBust(scene, bustModel);
     figure = createFigure(FIGURE_AT, (await figurePoints) ?? undefined);
     scene.add(figure.object, figure.shadow, figure.pool);
     wallTitle = createWallTitle();
@@ -1227,6 +1253,14 @@ async function start() {
         drawers,
         /** Freeze the PLANTIMANÍA ivy at `seconds` (debug only). */
         ivyAt: (seconds) => ivy?.at(seconds),
+        /** Open or close a drawer by id, e.g. `drawer("C11_F05", true)` (debug only). */
+        drawer(id, open = true) {
+          const d = drawerById.get(id);
+          if (!d || !ready || intro) return false;
+          focusDrawer(d);
+          setSelectedDrawer(open);
+          return true;
+        },
         /** Make a tube fail now, e.g. `flicker([0])` (debug only). */
         flicker: (panels) => flickerTube(panels),
         /** Draw one complete frame now (debug only). */
@@ -1780,6 +1814,7 @@ export function getRoomState() {
     labels: labelCount,
     building: Boolean(reveal && !reveal.finished),
     cameras: cameraWall?.state ?? null,
+    bust: bustObject ? { height: bustObject.height } : null,
     about: aboutOpen,
     figure: figure
       ? {
