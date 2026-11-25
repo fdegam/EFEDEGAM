@@ -9,7 +9,7 @@ import * as THREE from "three";
  * slides out the bust comes up and forward, and it sinks back into the drawer
  * when it closes. Time is real time; reduced motion keeps it still in the air.
  */
-const RISE = 0.3; // m above the drawer's front when it floats
+const RISE = 0.17; // m above the drawer's front when it floats (its centre)
 const HOP = 0.035; // m of each small hop
 const HOP_PERIOD = 0.62; // s between hops
 const SPIN = 0.35; // rad/s, slow turn on its own axis
@@ -148,7 +148,7 @@ export function createBust(scene, gltf) {
       // the bust floats just above it, and comes forward with it.
       anchor.set(0, 0, 0);
       drawer.node.getWorldPosition(anchor);
-      const baseY = anchor.y + 0.08 + RISE * k;
+      const baseY = anchor.y + 0.02 + RISE * k;
 
       // Hops: short bounces while it floats; still when it sinks back in.
       const hopping = !reduced && k > 0.6;
