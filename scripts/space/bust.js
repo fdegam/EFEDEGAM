@@ -9,7 +9,12 @@ import * as THREE from "three";
  * slides out the bust comes up and forward, and it sinks back into the drawer
  * when it closes. Time is real time; reduced motion keeps it still in the air.
  */
-const RISE = 0.17; // m above the drawer's front when it floats (its centre)
+// It starts inside the drawer (below its lip, set back into the drawer's
+// depth) and rises out through the opening: RISE metres above the front of
+// the drawer, still set back, so it never sits in front of the drawer.
+const RISE = 0.22;
+const START_Y = -0.05; // m below the drawer's front line, inside it
+const START_Z = -0.1; // m behind the drawer's front face, the whole way up
 const HOP = 0.035; // m of each small hop
 const HOP_PERIOD = 0.62; // s between hops
 const SPIN = 0.35; // rad/s, slow turn on its own axis
@@ -148,7 +153,9 @@ export function createBust(scene, gltf) {
       // the bust floats just above it, and comes forward with it.
       anchor.set(0, 0, 0);
       drawer.node.getWorldPosition(anchor);
-      const baseY = anchor.y + 0.02 + RISE * k;
+      // Ease out of the drawer: slow start inside, then up through the lip.
+      const e = k * k * (3 - 2 * k);
+      const baseY = anchor.y + START_Y + (RISE - START_Y) * e;
 
       // Hops: short bounces while it floats; still when it sinks back in.
       const hopping = !reduced && k > 0.6;
@@ -156,7 +163,7 @@ export function createBust(scene, gltf) {
       const phase = (hopClock % HOP_PERIOD) / HOP_PERIOD;
       const bounce = hopping ? HOP * Math.pow(Math.abs(Math.sin(Math.PI * phase)), 0.9) : 0;
 
-      target.set(anchor.x, baseY + bounce, anchor.z + 0.06);
+      target.set(anchor.x, baseY + bounce, anchor.z + START_Z);
       group.position.lerp(target, reduced ? 1 : 1 - Math.exp(-dt * 12));
 
       // Slight squash on each landing, a slow turn on its own axis.

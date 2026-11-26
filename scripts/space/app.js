@@ -326,6 +326,18 @@ function setSelectedDrawer(open) {
   if (!ready || !selected) return;
   toggleDrawer(selected, open);
   updatePanel();
+  // The bust's drawer: the camera eases a little backwards as it opens, so
+  // the bust has room to rise out of it.
+  if (open && selected.id === BUST_DRAWER) {
+    // Read the camera once the approach has arrived (it takes ~0.9 s).
+    setTimeout(() => {
+      if (!selected || selected.id !== BUST_DRAWER || !isOpen(selected)) return;
+      const back = new THREE.Vector3();
+      camera.getWorldDirection(back);
+      const position = camera.position.clone().addScaledVector(back, -0.32);
+      travelTo({ position, quaternion: camera.quaternion.clone() }, 1100);
+    }, 1000);
+  }
   const projectsKind = selected.special?.kind === "projects";
   if (selected.special?.kind === "plant" && ivy) {
     if (open) ivy.grow(performance.now(), reduced.matches);
