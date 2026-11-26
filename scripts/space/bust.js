@@ -15,8 +15,8 @@ import * as THREE from "three";
 const RISE = 0.22;
 const START_Y = -0.05; // m below the drawer's front line, inside it
 const START_Z = -0.1; // m behind the drawer's front face, the whole way up
-const HOP = 0.035; // m of each small hop
-const HOP_PERIOD = 0.62; // s between hops
+const HOP = 0.02; // m of each small hop, soft
+const HOP_PERIOD = 1.1; // s between hops: unhurried
 const SPIN = 0.35; // rad/s, slow turn on its own axis
 const SCALE = 1;
 
@@ -161,13 +161,16 @@ export function createBust(scene, gltf) {
       const hopping = !reduced && k > 0.6;
       if (hopping) hopClock += dt;
       const phase = (hopClock % HOP_PERIOD) / HOP_PERIOD;
-      const bounce = hopping ? HOP * Math.pow(Math.abs(Math.sin(Math.PI * phase)), 0.9) : 0;
+      // A cosine arc: it leaves the air and returns with no sudden turn, and
+      // it hangs a moment at the top (zero speed at both ends of each hop).
+      const arc = (1 - Math.cos(2 * Math.PI * phase)) / 2;
+      const bounce = hopping ? HOP * arc : 0;
 
       target.set(anchor.x, baseY + bounce, anchor.z + START_Z);
       group.position.lerp(target, reduced ? 1 : 1 - Math.exp(-dt * 12));
 
       // Slight squash on each landing, a slow turn on its own axis.
-      const land = hopping ? 1 - 0.035 * Math.exp(-phase * 14) : 1;
+      const land = 1; // no squash: a soft float, not a bounce on a surface
       if (!reduced) spin += dt * SPIN;
       group.rotation.set(0.12 * Math.sin(spin * 0.7), spin, 0.04 * Math.sin(spin * 0.5));
       group.scale.set(SCALE, SCALE * land, SCALE);
